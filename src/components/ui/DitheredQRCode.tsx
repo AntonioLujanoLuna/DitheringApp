@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { processImage } from '@/lib/algorithms';  // Changed to use @ alias
-import { DitheringAlgorithm, ColorMode } from '@/store/useEditorStore';  // Changed to use @ alias
+import { processImage } from '../../lib/algorithms';
+import { DitheringAlgorithm, ColorMode } from '../../store/useEditorStore';
 
 interface DitheredQRCodeProps {
   value: string;
