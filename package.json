@@ -7,9 +7,6 @@
     "node": "18.x",
     "npm": ">=8.0.0"
   },
-  "overrides": {
-    "rollup": "^4.9.0"
-  },
   "scripts": {
     "dev": "vite",
     "build": "node build.js",
