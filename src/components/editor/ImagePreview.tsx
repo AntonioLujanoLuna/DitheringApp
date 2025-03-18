@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
-import { processImage } from '@/lib/algorithms'; 
+import { processImage } from '../../lib/algorithms';
 import { toast } from 'react-toastify';
 import DitheredQRCode from '../../components/ui/DitheredQRCode';
 
