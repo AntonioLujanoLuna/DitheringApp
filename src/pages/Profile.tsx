@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { useGalleryStore } from '../store/useGalleryStore';
-import { usePresetStore } from '../store/usePresetsStore';
+import { usePresetStore } from '../store/usePresetStore';
 import { toast } from 'react-toastify';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
