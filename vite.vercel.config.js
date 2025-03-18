@@ -9,4 +9,13 @@ export default defineConfig({
       '@': '/src',
     },
   },
+  optimizeDeps: {
+    exclude: ['@rollup/rollup-linux-x64-gnu']
+  },
+  build: {
+    rollupOptions: {
+      makeAbsoluteExternalsRelative: false,
+      external: [/@rollup\/rollup-.*-gnu/]
+    }
+  }
 })
