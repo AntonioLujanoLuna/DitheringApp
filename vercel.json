@@ -6,5 +6,8 @@
     "routes": [
       { "handle": "filesystem" },
       { "src": "/(.*)", "dest": "/index.html" }
-    ]
+    ],
+    "env": {
+      "SHARP_IGNORE_GLOBAL_LIBVIPS": "1"
+    }
   }
