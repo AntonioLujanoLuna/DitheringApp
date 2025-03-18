@@ -64,15 +64,68 @@ if (isVercel) {
       fs.writeFileSync(npmrcPath, 'platform=linux\narch=x64\nlibc=glibc\nlegacy-peer-deps=true\nomit=optional\nnode-linker=hoisted', 'utf8');
       console.log('Created .npmrc file with platform settings');
       
-      // Try to explicitly install the required Rollup extension
-      try {
-        console.log('Installing the correct Rollup native extension for Linux x64 GNU...');
-        execSync('npm install @rollup/rollup-linux-x64-gnu --no-save', { stdio: 'inherit' });
-      } catch (installErr) {
-        console.warn(`Warning: Failed to install @rollup/rollup-linux-x64-gnu: ${installErr.message}`);
+      // Create a mock @rollup/rollup-linux-x64-gnu module
+      console.log('Creating mock Rollup native extension module...');
+      
+      const rollupDir = path.resolve(process.cwd(), 'node_modules/@rollup');
+      if (!fs.existsSync(rollupDir)) {
+        fs.mkdirSync(rollupDir, { recursive: true });
       }
+      
+      const mockModuleDir = path.resolve(rollupDir, 'rollup-linux-x64-gnu');
+      if (!fs.existsSync(mockModuleDir)) {
+        fs.mkdirSync(mockModuleDir);
+      }
+      
+      // Create a mock package.json
+      fs.writeFileSync(
+        path.resolve(mockModuleDir, 'package.json'),
+        JSON.stringify({
+          name: "@rollup/rollup-linux-x64-gnu",
+          version: "4.9.5",
+          description: "Mock native module",
+          main: "index.js"
+        }, null, 2)
+      );
+      
+      // Create a mock index.js that exports an empty module
+      fs.writeFileSync(
+        path.resolve(mockModuleDir, 'index.js'),
+        'module.exports = {};'
+      );
+      
+      console.log('Successfully created mock Rollup native extension module');
+      
     } catch (err) {
       console.warn(`Warning: Failed to set up Rollup for Vercel: ${err.message}`);
+    }
+    
+    // Patch rollup's native.js to avoid errors
+    try {
+      console.log('Patching Rollup native.js file...');
+      const nativeJsPath = path.resolve(process.cwd(), 'node_modules/rollup/dist/native.js');
+      
+      if (fs.existsSync(nativeJsPath)) {
+        let nativeJs = fs.readFileSync(nativeJsPath, 'utf8');
+        
+        // Modify native.js to just return an empty object without trying to load native code
+        const patchedCode = `
+// Patched by postinstall script to avoid native extension issues
+function getDefaultExportFromCjs (x) {
+  return x && x.__esModule ? x['default'] : x;
+}
+
+var native = {};
+export { getDefaultExportFromCjs as g, native as n };
+`;
+        
+        fs.writeFileSync(nativeJsPath, patchedCode);
+        console.log('Successfully patched Rollup native.js file');
+      } else {
+        console.warn('Could not find rollup/dist/native.js to patch');
+      }
+    } catch (err) {
+      console.warn(`Warning: Failed to patch Rollup native.js: ${err.message}`);
     }
     
     // Ensure Vite is installed

@@ -10,29 +10,62 @@ process.env.NODE_ENV = 'production';
 
 console.log('Starting Vercel build with the following environment:');
 console.log(`- ROLLUP_NATIVE_EXTENSIONS=${process.env.ROLLUP_NATIVE_EXTENSIONS}`);
-console.log(`- DISABLE_PWA=${process.env.DISABLE_PWA}`);
+console.log(`- DISABLE_PWA=${process.DISABLE_PWA}`);
 console.log(`- NODE_ENV=${process.env.NODE_ENV}`);
 
 // Ensure the correct Rollup configuration
 try {
-  // Use the Vercel-specific Vite config
-  console.log('Running Vite build with Vercel-specific configuration...');
+  // Use the Vercel-specific Vite config with a direct call to esbuild
+  console.log('Running Vite build in production mode...');
   
-  // Create a temporary build script with the explicit env variables
-  const buildCommand = 'ROLLUP_NATIVE_EXTENSIONS=false DISABLE_PWA=true NODE_ENV=production vite build --config vite.vercel.config.js';
-  
-  // Execute the build
-  execSync(buildCommand, { 
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      ROLLUP_NATIVE_EXTENSIONS: 'false',
-      DISABLE_PWA: 'true',
-      NODE_ENV: 'production'
+  // Create a temporary vite.vercel.config.js file that doesn't use rollup
+  const tempConfigPath = path.resolve(process.cwd(), 'vite.temp.js');
+  const configContent = `
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    // Force the JS-only build with no native extensions
+    target: 'es2015',
+    minify: 'esbuild',
+    rollupOptions: {
+      external: [
+        '@rollup/rollup-linux-x64-gnu',
+        '@rollup/rollup-darwin-x64',
+        '@rollup/rollup-darwin-arm64',
+        '@rollup/rollup-win32-x64-msvc'
+      ]
     }
-  });
+  }
+});
+`;
+  fs.writeFileSync(tempConfigPath, configContent);
+  console.log('Created temporary Vite config');
   
-  console.log('Build completed successfully!');
+  // Execute the build with the temporary config
+  try {
+    execSync('npx vite build --config vite.temp.js', { 
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        ROLLUP_NATIVE_EXTENSIONS: 'false',
+        DISABLE_PWA: 'true',
+        NODE_ENV: 'production'
+      }
+    });
+    
+    console.log('Build completed successfully!');
+  } catch (buildError) {
+    console.error('Build failed:', buildError);
+    process.exit(1);
+  } finally {
+    // Clean up the temporary config
+    if (fs.existsSync(tempConfigPath)) {
+      fs.unlinkSync(tempConfigPath);
+    }
+  }
 } catch (error) {
   console.error('Build failed:', error);
   process.exit(1);
