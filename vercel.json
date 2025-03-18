@@ -1,5 +1,5 @@
 {
-  "buildCommand": "ROLLUP_NATIVE_EXTENSIONS=false vite build --config vite.vercel.config.js",
+  "buildCommand": "npm run vercel-build",
   "framework": "vite",
   "outputDirectory": "dist",
   "installCommand": "npm install",
