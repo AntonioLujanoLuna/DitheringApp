@@ -12,11 +12,5 @@
     "NODE_ENV": "production",
     "ROLLUP_NATIVE_EXTENSIONS": "false",
     "VERCEL": "1"
-  },
-  "buildEnvironment": {
-    "DISABLE_PWA": "true",
-    "NODE_ENV": "production",
-    "ROLLUP_NATIVE_EXTENSIONS": "false",
-    "VERCEL": "1"
   }
 }
