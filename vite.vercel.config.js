@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Simplified config for Vercel - no PWA
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -10,12 +9,12 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ['@rollup/rollup-linux-x64-gnu']
+    exclude: ['@rollup/rollup-linux-x64-gnu', '@rollup/rollup-darwin-x64', '@rollup/rollup-darwin-arm64']
   },
   build: {
     rollupOptions: {
-      makeAbsoluteExternalsRelative: false,
-      external: [/@rollup\/rollup-.*-gnu/]
+      external: [/@rollup\/rollup-.*-gnu/, /@rollup\/rollup-.*-darwin/],
+      makeAbsoluteExternalsRelative: false
     }
   }
-})
+});

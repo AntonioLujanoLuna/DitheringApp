@@ -1,5 +1,5 @@
 {
-  "buildCommand": "vite build --config vite.vercel.config.js",
+  "buildCommand": "ROLLUP_NATIVE_EXTENSIONS=false vite build --config vite.vercel.config.js",
   "framework": "vite",
   "outputDirectory": "dist",
   "installCommand": "npm install",
@@ -9,6 +9,7 @@
   ],
   "env": {
     "DISABLE_PWA": "true",
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "ROLLUP_NATIVE_EXTENSIONS": "false"
   }
 }
