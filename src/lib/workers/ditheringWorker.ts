@@ -1,11 +1,9 @@
 // src/lib/workers/ditheringWorker.ts
 // This file will be loaded as a web worker to process images in a background thread
 
-import { 
-    processImage,
-    DitheringAlgorithm,
-    ColorMode
-  } from '../algorithms';
+
+  import { processImage } from '../../lib/algorithms';
+  import { DitheringAlgorithm, ColorMode } from '../../store/useEditorStore';
   
   // Define the message type for TypeScript
   interface WorkerMessage {
