@@ -5,6 +5,18 @@ import 'react-toastify/dist/ReactToastify.css';
 
 // Import core pages
 import Home from './pages/Home';
+import Editor from './pages/Editor';
+import CommunityGallery from './pages/CommunityGallery';
+import MyGallery from './pages/MyGallery';
+import Profile from './pages/Profile';
+import Login from './pages/auth/Login';
+import Signup from './pages/auth/Signup';
+import SharePage from './pages/SharePage';
+import ImageDetails from './components/gallery/ImageDetails';
+
+// Import layout and auth components
+import Layout from './components/layout/Layout';
+import RequireAuth from './components/auth/RequireAuth';
 
 // For debugging - simple test component
 const TestComponent = () => (
@@ -42,11 +54,21 @@ function App() {
       </div>
       
       <Routes>
-        {/* Test route */}
-        <Route path="/test" element={<TestComponent />} />
-        
-        {/* Main routes - simplified for initial deployment */}
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Layout />}>
+          {/* Main routes */}
+          <Route index element={<Home />} />
+          <Route path="editor" element={<Editor />} />
+          <Route path="gallery">
+            <Route path="community" element={<CommunityGallery />} />
+            <Route path="my" element={<RequireAuth><MyGallery /></RequireAuth>} />
+            <Route path="image/:id" element={<ImageDetails />} />
+          </Route>
+          <Route path="share" element={<SharePage />} />
+          <Route path="profile" element={<RequireAuth><Profile /></RequireAuth>} />
+          <Route path="login" element={<Login />} />
+          <Route path="signup" element={<Signup />} />
+          <Route path="test" element={<TestComponent />} />
+        </Route>
         
         {/* Fallback route */}
         <Route path="*" element={<Navigate to="/" replace />} />
