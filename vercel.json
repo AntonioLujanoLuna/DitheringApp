@@ -1,8 +1,8 @@
 {
-    "buildCommand": "node scripts/vercel-build.js",
+    "buildCommand": "node scripts/vercel-build-minimal.js",
     "framework": "vite",
     "outputDirectory": "dist",
-    "installCommand": "npm install --no-package-lock --omit=dev --ignore-scripts && node scripts/postinstall.js",
+    "installCommand": "npm install --production --no-package-lock",
     "routes": [
       { "handle": "filesystem" },
       { "src": "/(.*)", "dest": "/index.html" }

@@ -36,7 +36,7 @@ try {
   // Check if we have our special config
   if (fs.existsSync(vercelViteConfig)) {
     console.log('Using Vercel-specific Vite config...');
-    execSync(`vite build --config vite.vercel.config.js`, { 
+    execSync(`npx vite build --config vite.vercel.config.js`, { 
       stdio: 'inherit',
       env: { 
         ...process.env,
@@ -47,7 +47,7 @@ try {
   } else {
     // Still try to build with PWA disabled
     console.log('Running Vite build with PWA explicitly disabled...');
-    execSync('vite build', { 
+    execSync('npx vite build', { 
       stdio: 'inherit',
       env: { 
         ...process.env,

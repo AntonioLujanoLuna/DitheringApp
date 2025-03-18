@@ -52,6 +52,20 @@ if (isVercel) {
       console.warn(`Warning: Failed to modify vite.config.ts: ${err.message}`);
     }
     
+    // Ensure Vite is installed
+    try {
+      console.log('Making sure Vite is installed...');
+      execSync('npm list vite || npm install vite@5.1.4 --no-save', { stdio: 'inherit' });
+    } catch (err) {
+      console.warn(`Warning: Error checking/installing Vite: ${err.message}`);
+      console.log('Attempting emergency install of Vite...');
+      try {
+        execSync('npm install vite@5.1.4 --no-save', { stdio: 'inherit' });
+      } catch (installErr) {
+        console.error(`Error installing Vite: ${installErr.message}`);
+      }
+    }
+    
     console.log('Successfully prepared environment for Vercel build.');
   } catch (error) {
     console.error('Error in postinstall script:', error);
