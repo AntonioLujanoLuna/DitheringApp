@@ -1,5 +1,7 @@
+import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import '@testing-library/jest-dom';
 import ImageUploader from './ImageUploader';
 import { useEditorStore } from '../../store/useEditorStore';
 
@@ -60,8 +62,7 @@ describe('ImageUploader', () => {
     // Mock the file reader API
     const mockFileReader = {
       readAsDataURL: vi.fn(),
-      onload: null,
-      onerror: null,
+      onload: null as any,
     };
     
     global.FileReader = vi.fn(() => mockFileReader) as any;
@@ -83,7 +84,9 @@ describe('ImageUploader', () => {
     
     // Trigger onload
     if (mockFileReader.onload) {
-      mockFileReader.onload({ target: { result: 'data:image/png;base64,test' } } as any);
+      // Simulate the onload event by directly calling the handler with fake event
+      const event = { target: { result: 'data:image/png;base64,test' } };
+      mockFileReader.onload.call(mockFileReader, event);
     }
     
     // Check if setOriginalImage was called

@@ -1,7 +1,7 @@
 import React from 'react';
-import ImageCard from './ImageCard';
-import { ImageItem } from '../../store/useGalleryStore';
-import Button from '../ui/Button';
+import ImageCard from '../components/gallery/ImageCard';
+import { ImageItem } from '../store/useGalleryStore';
+import Button from '../components/ui/Button';
 
 interface GalleryGridProps {
   images: ImageItem[];

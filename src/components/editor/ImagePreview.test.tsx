@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ImagePreview from './ImagePreview';
@@ -82,7 +83,7 @@ describe('ImagePreview', () => {
         height: 100,
       })),
     };
-    mockCanvas.getContext = vi.fn(() => mockCanvasContext);
+    mockCanvas.getContext = vi.fn(() => mockCanvasContext) as unknown as () => CanvasRenderingContext2D;
     
     vi.spyOn(document, 'querySelector').mockReturnValue(mockCanvas);
 

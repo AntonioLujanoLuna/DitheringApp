@@ -11,10 +11,10 @@ import Home from './pages/Home';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import Profile from './pages/Profile';
-import CommunityGallery from './pages/gallery/CommunityGallery';
-import MyGallery from './pages/gallery/MyGallery';
-import ImageDetails from './pages/gallery/ImageDetails';
-import SharePage from './pages/gallery/SharePage';
+import CommunityGallery from './pages/CommunityGallery';
+import MyGallery from './pages/MyGallery';
+import ImageDetails from './components/gallery/ImageDetails';
+import SharePage from './pages/SharePage';
 
 function App() {
   return (

@@ -27,7 +27,7 @@ interface PresetState {
   selectPreset: (preset: Preset | null) => void;
 }
 
-export const usePresetStore = create<PresetState>((set, get) => ({
+export const usePresetStore = create<PresetState>((set) => ({
   myPresets: [],
   communityPresets: [],
   selectedPreset: null,
@@ -35,8 +35,8 @@ export const usePresetStore = create<PresetState>((set, get) => ({
   error: null,
   
   fetchMyPresets: async () => {
-    const { user } = await supabase.auth.getUser();
-    if (!user.data.user) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     
     try {
       set({ isLoading: true, error: null });
@@ -44,7 +44,7 @@ export const usePresetStore = create<PresetState>((set, get) => ({
       const { data, error } = await supabase
         .from('presets')
         .select('id, user_id, name, settings, is_public, created_at')
-        .eq('user_id', user.data.user.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
         
       if (error) throw error;
@@ -82,7 +82,7 @@ export const usePresetStore = create<PresetState>((set, get) => ({
         settings: item.settings,
         is_public: item.is_public,
         created_at: item.created_at,
-        username: item.profiles?.username
+        username: item.profiles?.[0]?.username || null
       }));
       
       set({ 
@@ -97,8 +97,8 @@ export const usePresetStore = create<PresetState>((set, get) => ({
   },
   
   createPreset: async (name, settings, isPublic) => {
-    const { user } = await supabase.auth.getUser();
-    if (!user.data.user) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     
     try {
       set({ isLoading: true, error: null });
@@ -107,7 +107,7 @@ export const usePresetStore = create<PresetState>((set, get) => ({
         .from('presets')
         .insert([
           {
-            user_id: user.data.user.id,
+            user_id: user.id,
             name,
             settings,
             is_public: isPublic
@@ -130,8 +130,8 @@ export const usePresetStore = create<PresetState>((set, get) => ({
   },
   
   updatePreset: async (id, { name, isPublic }) => {
-    const { user } = await supabase.auth.getUser();
-    if (!user.data.user) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     
     try {
       set({ isLoading: true, error: null });
@@ -144,7 +144,7 @@ export const usePresetStore = create<PresetState>((set, get) => ({
         .from('presets')
         .update(updates)
         .eq('id', id)
-        .eq('user_id', user.data.user.id);
+        .eq('user_id', user.id);
         
       if (error) throw error;
       
@@ -165,8 +165,8 @@ export const usePresetStore = create<PresetState>((set, get) => ({
   },
   
   deletePreset: async (id) => {
-    const { user } = await supabase.auth.getUser();
-    if (!user.data.user) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     
     try {
       set({ isLoading: true, error: null });
@@ -175,7 +175,7 @@ export const usePresetStore = create<PresetState>((set, get) => ({
         .from('presets')
         .delete()
         .eq('id', id)
-        .eq('user_id', user.data.user.id);
+        .eq('user_id', user.id);
         
       if (error) throw error;
       

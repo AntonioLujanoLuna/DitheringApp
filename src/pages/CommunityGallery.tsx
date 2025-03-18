@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { useGalleryStore } from '../../store/useGalleryStore';
-import { useEditorStore } from '../../store/useEditorStore';
-import { useAuthStore } from '../../store/useAuthStore';
+import { useGalleryStore } from '../store/useGalleryStore';
+import { useEditorStore } from '../store/useEditorStore';
+import { useAuthStore } from '../store/useAuthStore';
 import GalleryGrid from '../../components/gallery/GalleryGrid';
-import Button from '../../components/ui/Button';
-import Tabs, { TabItem } from '../../components/ui/Tabs';
+import Button from '../components/ui/Button';
+import Tabs, { TabItem } from '../components/ui/Tabs';
 
 // Simple Ad component - normally would be more sophisticated
 const AdBanner: React.FC = () => (

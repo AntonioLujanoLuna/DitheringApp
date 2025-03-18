@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { useEditorStore, EditorSettings } from '../../store/useEditorStore';
-import Button from '../../components/ui/Button';
+import { useEditorStore, EditorSettings } from '../store/useEditorStore';
+import Button from '../components/ui/Button';
 
 const SharePage: React.FC = () => {
   const [searchParams] = useSearchParams();
