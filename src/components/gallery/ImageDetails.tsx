@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useEditorStore } from '../../store/useEditorStore';
 import Button from '../../components/ui/Button';
 import { toast } from 'react-toastify';
-import { QRCodeSVG } from 'qrcode.react';
+import DitheredQRCode from '../../components/ui/DitheredQRCode';
 
 interface ImageDetailData extends Omit<ImageItem, 'processing_settings'> {
   processing_settings: any;
@@ -250,8 +250,21 @@ const ImageDetails: React.FC = () => {
               </Button>
               
               {showQRCode && (
-                <div className="mt-3 p-4 bg-white rounded-lg shadow border flex justify-center">
-                  <QRCodeSVG value={shareURL} size={180} />
+                <div className="mt-3 p-4 bg-white rounded-lg shadow border flex flex-col items-center">
+                  <DitheredQRCode 
+                    value={shareURL} 
+                    size={180}
+                    algorithm={image.processing_settings?.algorithm || 'halftone'}
+                    dotSize={image.processing_settings?.dotSize || 3}
+                    contrast={image.processing_settings?.contrast || 50}
+                    colorMode={image.processing_settings?.colorMode || 'bw'}
+                    spacing={image.processing_settings?.spacing || 5}
+                    angle={image.processing_settings?.angle || 45}
+                    customColors={image.processing_settings?.customColors || ['#000000', '#ffffff']}
+                  />
+                  <p className="text-center text-sm text-gray-500 mt-2">
+                    Scan to share this image
+                  </p>
                 </div>
               )}
             </div>

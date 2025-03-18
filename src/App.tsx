@@ -13,6 +13,7 @@ import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import SharePage from './pages/SharePage';
 import ImageDetails from './components/gallery/ImageDetails';
+import BatchProcessor from './components/batch/BatchProcessor';
 
 // Import layout and auth components
 import Layout from './components/layout/Layout';
@@ -58,6 +59,7 @@ function App() {
           {/* Main routes */}
           <Route index element={<Home />} />
           <Route path="editor" element={<Editor />} />
+          <Route path="batch" element={<RequireAuth><BatchProcessor /></RequireAuth>} />
           <Route path="gallery">
             <Route path="community" element={<CommunityGallery />} />
             <Route path="my" element={<RequireAuth><MyGallery /></RequireAuth>} />

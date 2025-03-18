@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
 import { processImage } from '../../lib/algorithms';
-import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'react-toastify';
+import DitheredQRCode from '../../components/ui/DitheredQRCode';
 
 const ImagePreview: React.FC = () => {
   const { 
@@ -250,11 +250,28 @@ const ImagePreview: React.FC = () => {
         </button>
       </div>
       
-      {/* QR Code */}
+      {/* QR Code with dithering effect */}
       {showQRCode && shareUrl && (
         <div className="flex justify-center">
           <div className="p-4 bg-white rounded-lg shadow-md">
-            <QRCodeSVG value={shareUrl} size={200} />
+            <DitheredQRCode 
+              value={shareUrl} 
+              size={200}
+              algorithm={algorithm}
+              dotSize={dotSize}
+              contrast={contrast}
+              colorMode={colorMode}
+              spacing={spacing}
+              angle={angle}
+              customColors={customColors}
+              qrCodeOptions={{
+                level: 'H', // Higher error correction for better scanning
+                includeMargin: true,
+              }}
+            />
+            <p className="text-center text-sm text-gray-500 mt-3">
+              Scan to view with these exact settings
+            </p>
           </div>
         </div>
       )}

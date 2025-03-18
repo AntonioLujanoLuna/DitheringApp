@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useEditorStore, EditorSettings } from '../store/useEditorStore';
 import Button from '../components/ui/Button';
+import DitheredQRCode from '../components/ui/DitheredQRCode';
 
 const SharePage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -134,6 +135,44 @@ const SharePage: React.FC = () => {
           <p className="text-gray-600">
             Someone has shared image processing settings with you. Apply these settings to create similar effects in the editor.
           </p>
+        </div>
+        
+        {/* Enhanced section with dithered QR code */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-6 items-center">
+          <div className="w-full sm:w-1/2 flex justify-center">
+            <DitheredQRCode 
+              value={window.location.href}
+              size={220}
+              algorithm={settings?.algorithm || 'halftone'}
+              dotSize={settings?.dotSize || 3}
+              contrast={settings?.contrast || 50}
+              colorMode={settings?.colorMode || 'bw'}
+              spacing={settings?.spacing || 5}
+              angle={settings?.angle || 45}
+              customColors={settings?.customColors || ['#000000', '#ffffff']}
+            />
+          </div>
+          
+          <div className="w-full sm:w-1/2">
+            <h2 className="text-xl font-semibold mb-3">Share This Look</h2>
+            <p className="text-gray-600 mb-4">
+              Scan this code or share the link to let others apply these exact settings to their images.
+            </p>
+            <Button 
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                toast.success('Link copied to clipboard!');
+              }}
+              variant="secondary"
+              leftIcon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              }
+            >
+              Copy Share Link
+            </Button>
+          </div>
         </div>
         
         <div className="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200">
