@@ -1,15 +1,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+// Import PWA plugin directly
 import { VitePWA } from 'vite-plugin-pwa'
 
 // Check if PWA is disabled via environment variable
-const isPWADisabled = process.env.DISABLE_PWA === 'true' || process.env.VERCEL === '1';
+const isPWADisabled = process.env.DISABLE_PWA === 'true';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    // Only apply PWA plugin when not disabled
+    // Conditionally include PWA plugin
     ...(!isPWADisabled ? [
       VitePWA({
         registerType: 'autoUpdate',
@@ -39,7 +40,7 @@ export default defineConfig({
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
           runtimeCaching: [
             {
-              urlPattern: /^https:\/\/blubfanoxwsgmpleblsi\.supabase\.co\/.*/i,
+              urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
               handler: 'CacheFirst',
               options: {
                 cacheName: 'supabase-api-cache',
