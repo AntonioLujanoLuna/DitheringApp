@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useGalleryStore } from '../store/useGalleryStore';
 import { useEditorStore } from '../store/useEditorStore';
-import GalleryGrid from '../../components/gallery/GalleryGrid';
+import GalleryGrid from './GalleryGrid';
 import Button from '../components/ui/Button';
 
 const MyGallery: React.FC = () => {

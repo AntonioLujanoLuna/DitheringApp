@@ -10,7 +10,7 @@ process.env.NODE_ENV = 'production';
 
 console.log('Starting Vercel build with the following environment:');
 console.log(`- ROLLUP_NATIVE_EXTENSIONS=${process.env.ROLLUP_NATIVE_EXTENSIONS}`);
-console.log(`- DISABLE_PWA=${process.DISABLE_PWA}`);
+console.log(`- DISABLE_PWA=${process.env.DISABLE_PWA}`); // Fixed this line
 console.log(`- NODE_ENV=${process.env.NODE_ENV}`);
 
 // Ensure the correct Rollup configuration
@@ -26,6 +26,11 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@': '/src',
+    },
+  },
   build: {
     // Force the JS-only build with no native extensions
     target: 'es2015',

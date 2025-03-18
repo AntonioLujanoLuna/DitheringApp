@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { useGalleryStore } from '../store/useGalleryStore';
 import { useEditorStore } from '../store/useEditorStore';
 import { useAuthStore } from '../store/useAuthStore';
-import GalleryGrid from '../../components/gallery/GalleryGrid';
+import GalleryGrid from './GalleryGrid'; // Fixed import path
 import Button from '../components/ui/Button';
 import Tabs, { TabItem } from '../components/ui/Tabs';
 
