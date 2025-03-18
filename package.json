@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "node build.js",
-    "vercel-build": "DISABLE_PWA=true vite build",
+    "vercel-build": "DISABLE_PWA=true node scripts/vercel-build.mjs",
     "postinstall": "node scripts/postinstall.js",
     "lint": "eslint .",
     "preview": "vite preview",

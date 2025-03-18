@@ -1,14 +1,14 @@
 {
-    "buildCommand": "node scripts/vercel-build-minimal.js",
-    "framework": "vite",
-    "outputDirectory": "dist",
-    "installCommand": "npm install --production --no-package-lock",
-    "routes": [
-      { "handle": "filesystem" },
-      { "src": "/(.*)", "dest": "/index.html" }
-    ],
-    "env": {
-      "DISABLE_PWA": "true",
-      "NODE_ENV": "production"
-    }
+  "buildCommand": "node scripts/vercel-build.mjs",
+  "framework": "vite",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ],
+  "env": {
+    "DISABLE_PWA": "true",
+    "NODE_ENV": "production"
   }
+}
