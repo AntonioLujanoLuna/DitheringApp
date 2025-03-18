@@ -2,15 +2,15 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// Check if we're running in Vercel environment
-const isVercel = process.env.VERCEL === '1'
+// Check if PWA is disabled via environment variable
+const isPWADisabled = process.env.DISABLE_PWA === 'true' || process.env.VERCEL === '1';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    // Only apply PWA plugin when not in Vercel environment to avoid Sharp dependency
-    ...(!isVercel ? [
+    // Only apply PWA plugin when not disabled
+    ...(!isPWADisabled ? [
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
