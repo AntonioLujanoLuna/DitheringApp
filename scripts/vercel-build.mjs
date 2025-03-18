@@ -46,6 +46,8 @@ try {
   }
 });
 `;
+  const tempConfigPath = path.resolve(process.cwd(), 'vite.temp.js');
+
   fs.writeFileSync(tempConfigPath, configContent);
   console.log('Created temporary Vite config');
   
