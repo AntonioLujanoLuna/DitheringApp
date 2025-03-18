@@ -8,7 +8,7 @@ console.log('Running postinstall script...');
 const isVercel = process.env.VERCEL === '1';
 
 if (isVercel) {
-  console.log('Detected Vercel environment - disabling PWA features');
+  console.log('Detected Vercel environment - configuring build environment');
   process.env.DISABLE_PWA = 'true';
   
   try {
@@ -52,6 +52,29 @@ if (isVercel) {
       console.warn(`Warning: Failed to modify vite.config.ts: ${err.message}`);
     }
     
+    // Add explicit Rollup configuration for Vercel
+    console.log('Setting up Rollup for Vercel environment...');
+    
+    // Set environment variable to prevent native extensions
+    process.env.ROLLUP_NATIVE_EXTENSIONS = 'false';
+    
+    try {
+      // Create .npmrc file that forces correct architecture
+      const npmrcPath = path.resolve(process.cwd(), '.npmrc');
+      fs.writeFileSync(npmrcPath, 'platform=linux\narch=x64\nlibc=glibc\nlegacy-peer-deps=true\nomit=optional\nnode-linker=hoisted', 'utf8');
+      console.log('Created .npmrc file with platform settings');
+      
+      // Try to explicitly install the required Rollup extension
+      try {
+        console.log('Installing the correct Rollup native extension for Linux x64 GNU...');
+        execSync('npm install @rollup/rollup-linux-x64-gnu --no-save', { stdio: 'inherit' });
+      } catch (installErr) {
+        console.warn(`Warning: Failed to install @rollup/rollup-linux-x64-gnu: ${installErr.message}`);
+      }
+    } catch (err) {
+      console.warn(`Warning: Failed to set up Rollup for Vercel: ${err.message}`);
+    }
+    
     // Ensure Vite is installed
     try {
       console.log('Making sure Vite is installed...');
@@ -76,4 +99,4 @@ if (isVercel) {
 }
 
 // Exit successfully
-process.exit(0); 
+process.exit(0);
