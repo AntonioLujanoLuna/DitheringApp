@@ -19,18 +19,18 @@ try {
   console.log('Running Vite build in production mode...');
   
   // Create a temporary vite.vercel.config.js file that doesn't use rollup
-  const tempConfigPath = path.resolve(process.cwd(), 'vite.temp.js');
   const configContent = `
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': '/src',
+  import { defineConfig } from 'vite';
+  import react from '@vitejs/plugin-react';
+  import path from 'path';
+  
+  export default defineConfig({
+    plugins: [react()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, 'src'),
+      },
     },
-  },
   build: {
     // Force the JS-only build with no native extensions
     target: 'es2015',
