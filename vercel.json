@@ -1,13 +1,14 @@
 {
-    "buildCommand": "npm run vercel-build",
+    "buildCommand": "node scripts/vercel-build.js",
     "framework": "vite",
     "outputDirectory": "dist",
-    "installCommand": "npm install",
+    "installCommand": "npm install --no-package-lock --omit=dev --ignore-scripts && node scripts/postinstall.js",
     "routes": [
       { "handle": "filesystem" },
       { "src": "/(.*)", "dest": "/index.html" }
     ],
     "env": {
-      "DISABLE_PWA": "true"
+      "DISABLE_PWA": "true",
+      "NODE_ENV": "production"
     }
   }

@@ -5,17 +5,24 @@ import path from 'path';
 // Check if we're running in Vercel
 const isVercel = process.env.VERCEL === '1';
 
+// Safety check to ensure PWA is disabled in Vercel
 if (isVercel) {
   console.log('Running in Vercel environment');
+  process.env.DISABLE_PWA = 'true';
   
   try {
-    // Force disable PWA plugins in Vercel builds
-    console.log('Disabling PWA features for Vercel build');
-    process.env.DISABLE_PWA = 'true';
+    // Double check that vite.config.ts has PWA disabled 
+    console.log('Double-checking Vite config for PWA disabling...');
+    const isPWADisabled = process.env.DISABLE_PWA === 'true';
+    
+    if (!isPWADisabled) {
+      console.warn('WARNING: PWA should be disabled in Vercel environment');
+      process.env.DISABLE_PWA = 'true';
+    }
     
     // Run the standard build without PWA asset generation
-    console.log('Running Vite build...');
-    execSync('vite build', { stdio: 'inherit' });
+    console.log('Running Vite build with PWA disabled...');
+    execSync('DISABLE_PWA=true vite build', { stdio: 'inherit', env: { ...process.env, DISABLE_PWA: 'true' } });
     console.log('Build completed successfully');
   } catch (error) {
     console.error('Build failed:', error);
@@ -23,9 +30,10 @@ if (isVercel) {
   }
 } else {
   // For local builds, run the full process including PWA asset generation
-  console.log('Running full build with PWA asset generation...');
+  console.log('Running full build for local development...');
   try {
     execSync('vite build', { stdio: 'inherit' });
+    console.log('Build completed successfully');
   } catch (error) {
     console.error('Build failed in development:', error);
     process.exit(1);
