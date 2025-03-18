@@ -5,13 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "generate-pwa-assets": "pwa-assets-generator --config pwa-assets-generator.config.js"
+    "generate-pwa-assets": "pwa-assets-generator --config pwa-assets-generator.config.js",
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.3",
