@@ -1,10 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { 
-  processImage,
-  DitheringAlgorithm, 
-  ColorMode 
-} from '../lib/algorithms';
+import { processImage } from '../../lib/algorithms';
+import { DitheringAlgorithm, ColorMode } from '../../store/useEditorStore';
 
 interface DitheredQRCodeProps {
   value: string;
