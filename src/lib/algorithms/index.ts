@@ -4,14 +4,13 @@ export * from './floydSteinberg';
 export * from './atkinson';
 export * from './halftone';
 
-// Main processing function
-import { 
-  rgbToGrayscale, 
-  orderedDithering, 
-  floydSteinbergDithering, 
-  atkinsonDithering,
-  halftoneDithering
-} from './index';
+// Fix circular dependency by importing directly from individual files
+// instead of from './index'
+import { rgbToGrayscale } from './grayscale';
+import { orderedDithering } from './ordered';
+import { floydSteinbergDithering } from './floydSteinberg';
+import { atkinsonDithering } from './atkinson';
+import { halftoneDithering } from './halftone';
 
 import { DitheringAlgorithm, ColorMode } from '../../store/useEditorStore';
 

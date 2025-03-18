@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useEditorStore } from '../../store/useEditorStore';
-import { processImage } from '../../lib/algorithms';
+import { processImage } from '@/lib/algorithms';
 import Button from '../ui/Button';
 import { toast } from 'react-toastify';
 
