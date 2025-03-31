@@ -29,6 +29,17 @@ const Editor: React.FC = () => {
     spacing, 
     angle,
     customColors,
+    patternType,
+    patternSize,
+    toneLevel,
+    multiToneAlgorithm,
+    brightness,
+    gammaCorrection,
+    hue,
+    saturation,
+    lightness,
+    sharpness,
+    blur,
     setOriginalImage
   } = useEditorStore();
   
@@ -79,7 +90,18 @@ const Editor: React.FC = () => {
           colorMode,
           spacing,
           angle,
-          customColors
+          customColors,
+          patternType,
+          patternSize,
+          toneLevel,
+          multiToneAlgorithm,
+          brightness,
+          gammaCorrection,
+          hue,
+          saturation,
+          lightness,
+          sharpness,
+          blur
         }
       });
       
@@ -111,7 +133,18 @@ const Editor: React.FC = () => {
           colorMode,
           spacing,
           angle,
-          customColors
+          customColors,
+          patternType,
+          patternSize,
+          toneLevel,
+          multiToneAlgorithm,
+          brightness,
+          gammaCorrection,
+          hue,
+          saturation,
+          lightness,
+          sharpness,
+          blur
         }
       );
       
@@ -233,7 +266,10 @@ const Editor: React.FC = () => {
                     Clear Image
                   </button>
                   <button 
-                    onClick={() => document.querySelector('input[type="file"]')?.click()}
+                    onClick={() => {
+                      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                      if (fileInput) fileInput.click();
+                    }}
                     className="btn btn-secondary flex items-center gap-2"
                   >
                     <svg 
@@ -250,7 +286,7 @@ const Editor: React.FC = () => {
                         d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
                       />
                     </svg>
-                    Upload New Image
+                    Choose Another Image
                   </button>
                 </div>
               </div>

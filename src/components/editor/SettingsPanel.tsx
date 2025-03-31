@@ -2,6 +2,7 @@
 import React from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
 import { usePresetStore } from '../../store/usePresetStore';
+import { useRegionStore } from '../../store/useRegionStore';
 import { PatternType } from '../../lib/algorithms/patternDithering';
 import { MultiToneAlgorithm } from '../../lib/algorithms/multiTone';
 
@@ -50,6 +51,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onSavePreset }) => {
     resetSettings
   } = useEditorStore();
   
+  const { regions } = useRegionStore();
   const { myPresets, selectedPreset, selectPreset, fetchMyPresets } = usePresetStore();
   
   // Load presets on component mount
@@ -159,6 +161,31 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onSavePreset }) => {
           <option value="multiTone">Multi-tone Dithering</option>
           <option value="selective">Selective Dithering</option>
         </select>
+        
+        {algorithm === 'selective' && (
+          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="flex items-start space-x-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <p className="text-sm text-blue-800">
+                  Selective Dithering lets you apply different dithering algorithms to specific regions.
+                </p>
+                <p className="text-sm text-blue-600 mt-1">
+                  Click "Manage Regions" in the preview to create and configure dithering regions.
+                </p>
+                <div className="mt-1 text-xs text-blue-600">
+                  {regions.length > 0 ? (
+                    <span>You have {regions.length} region{regions.length !== 1 ? 's' : ''} defined.</span>
+                  ) : (
+                    <span>No regions defined yet. Create regions to use selective dithering.</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Color mode selection */}
@@ -383,24 +410,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onSavePreset }) => {
             />
           </div>
         </>
-      )}
-
-      {/* Selective Dithering Controls */}
-      {algorithm === 'selective' && (
-        <div className="p-4 bg-gray-100 rounded-lg">
-          <h3 className="text-md font-semibold mb-2">Selective Dithering</h3>
-          <p className="text-sm text-gray-700 mb-2">
-            This feature requires selecting regions and assigning different algorithms to each region.
-          </p>
-          <p className="text-sm text-gray-700">
-            Please use the region selection tools in the editor to define areas for different dithering algorithms.
-          </p>
-          
-          {/* Placeholder for region selection tools - would be implemented in future versions */}
-          <div className="mt-3 p-3 border border-dashed border-gray-400 rounded-lg text-center text-sm text-gray-500">
-            Region selection tools coming soon
-          </div>
-        </div>
       )}
 
       {/* Image Processing Controls - always visible */}
