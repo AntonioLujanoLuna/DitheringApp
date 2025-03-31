@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type DitheringAlgorithm = 'ordered' | 'floydSteinberg' | 'atkinson' | 'halftone';
+export type DitheringAlgorithm = 'ordered' | 'floydSteinberg' | 'atkinson' | 'halftone' | 'jarvisJudiceNinke' | 'stucki' | 'burkes' | 'sierraLite' | 'random';
 export type ColorMode = 'bw' | 'cmyk' | 'rgb' | 'custom';
 
 interface EditorState {

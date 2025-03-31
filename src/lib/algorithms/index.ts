@@ -3,6 +3,11 @@ export * from './ordered';
 export * from './floydSteinberg';
 export * from './atkinson';
 export * from './halftone';
+export * from './jarvisJudiceNinke';
+export * from './stucki';
+export * from './burkes';
+export * from './sierraLite';
+export * from './random';
 
 // Fix circular dependency by importing directly from individual files
 // instead of from './index'
@@ -11,6 +16,11 @@ import { orderedDithering } from './ordered';
 import { floydSteinbergDithering } from './floydSteinberg';
 import { atkinsonDithering } from './atkinson';
 import { halftoneDithering } from './halftone';
+import { jarvisJudiceNinkeDithering } from './jarvisJudiceNinke';
+import { stuckiDithering } from './stucki';
+import { burkesDithering } from './burkes';
+import { sierraLiteDithering } from './sierraLite';
+import { randomDithering } from './random';
 
 import { DitheringAlgorithm, ColorMode } from '../../store/useEditorStore';
 
@@ -59,6 +69,21 @@ export function processImage(
         break;
       case 'halftone':
         result = halftoneDithering(grayscale, canvas.width, canvas.height, dotSize, spacing, angle);
+        break;
+      case 'jarvisJudiceNinke':
+        result = jarvisJudiceNinkeDithering(grayscale, canvas.width, canvas.height);
+        break;
+      case 'stucki':
+        result = stuckiDithering(grayscale, canvas.width, canvas.height);
+        break;
+      case 'burkes':
+        result = burkesDithering(grayscale, canvas.width, canvas.height);
+        break;
+      case 'sierraLite':
+        result = sierraLiteDithering(grayscale, canvas.width, canvas.height);
+        break;
+      case 'random':
+        result = randomDithering(grayscale, canvas.width, canvas.height);
         break;
       default:
         result = orderedDithering(grayscale, canvas.width, canvas.height, dotSize);
@@ -128,6 +153,31 @@ export function processImage(
         greenResult = halftoneDithering(greenGrayscale, canvas.width, canvas.height, dotSize, spacing, angle + 30);
         blueResult = halftoneDithering(blueGrayscale, canvas.width, canvas.height, dotSize, spacing, angle + 60);
         break;
+      case 'jarvisJudiceNinke':
+        redResult = jarvisJudiceNinkeDithering(redGrayscale, canvas.width, canvas.height);
+        greenResult = jarvisJudiceNinkeDithering(greenGrayscale, canvas.width, canvas.height);
+        blueResult = jarvisJudiceNinkeDithering(blueGrayscale, canvas.width, canvas.height);
+        break;
+      case 'stucki':
+        redResult = stuckiDithering(redGrayscale, canvas.width, canvas.height);
+        greenResult = stuckiDithering(greenGrayscale, canvas.width, canvas.height);
+        blueResult = stuckiDithering(blueGrayscale, canvas.width, canvas.height);
+        break;
+      case 'burkes':
+        redResult = burkesDithering(redGrayscale, canvas.width, canvas.height);
+        greenResult = burkesDithering(greenGrayscale, canvas.width, canvas.height);
+        blueResult = burkesDithering(blueGrayscale, canvas.width, canvas.height);
+        break;
+      case 'sierraLite':
+        redResult = sierraLiteDithering(redGrayscale, canvas.width, canvas.height);
+        greenResult = sierraLiteDithering(greenGrayscale, canvas.width, canvas.height);
+        blueResult = sierraLiteDithering(blueGrayscale, canvas.width, canvas.height);
+        break;
+      case 'random':
+        redResult = randomDithering(redGrayscale, canvas.width, canvas.height);
+        greenResult = randomDithering(greenGrayscale, canvas.width, canvas.height);
+        blueResult = randomDithering(blueGrayscale, canvas.width, canvas.height);
+        break;
       default:
         redResult = orderedDithering(redGrayscale, canvas.width, canvas.height, dotSize);
         greenResult = orderedDithering(greenGrayscale, canvas.width, canvas.height, dotSize);
@@ -192,7 +242,9 @@ export function processImage(
         result.data[outputIdx + 3] = 255; // Alpha
         
         // Calculate error for error diffusion
-        if (algorithm === 'floydSteinberg' || algorithm === 'atkinson') {
+        if (algorithm === 'floydSteinberg' || algorithm === 'atkinson' || 
+            algorithm === 'jarvisJudiceNinke' || algorithm === 'stucki' || 
+            algorithm === 'burkes' || algorithm === 'sierraLite') {
           const selectedLuminance = 0.299 * selectedColor.r + 0.587 * selectedColor.g + 0.114 * selectedColor.b;
           const error = pixelValue - selectedLuminance;
           
@@ -240,6 +292,66 @@ export function processImage(
             if (y + 2 < canvas.height) {
               buffer[idx + canvas.width * 2] += atkinsonError;
             }
+          } else if (algorithm === 'jarvisJudiceNinke') {
+            // Distribute error using JJN pattern
+            if (x + 1 < canvas.width) buffer[idx + 1] += error * (7 / 48);
+            if (x + 2 < canvas.width) buffer[idx + 2] += error * (5 / 48);
+            
+            if (y + 1 < canvas.height) {
+              if (x - 2 >= 0) buffer[idx + canvas.width - 2] += error * (3 / 48);
+              if (x - 1 >= 0) buffer[idx + canvas.width - 1] += error * (5 / 48);
+              buffer[idx + canvas.width] += error * (7 / 48);
+              if (x + 1 < canvas.width) buffer[idx + canvas.width + 1] += error * (5 / 48);
+              if (x + 2 < canvas.width) buffer[idx + canvas.width + 2] += error * (3 / 48);
+            }
+            
+            if (y + 2 < canvas.height) {
+              if (x - 2 >= 0) buffer[idx + 2 * canvas.width - 2] += error * (1 / 48);
+              if (x - 1 >= 0) buffer[idx + 2 * canvas.width - 1] += error * (3 / 48);
+              buffer[idx + 2 * canvas.width] += error * (5 / 48);
+              if (x + 1 < canvas.width) buffer[idx + 2 * canvas.width + 1] += error * (3 / 48);
+              if (x + 2 < canvas.width) buffer[idx + 2 * canvas.width + 2] += error * (1 / 48);
+            }
+          } else if (algorithm === 'stucki') {
+            // Distribute error using Stucki pattern
+            if (x + 1 < canvas.width) buffer[idx + 1] += error * (8 / 42);
+            if (x + 2 < canvas.width) buffer[idx + 2] += error * (4 / 42);
+            
+            if (y + 1 < canvas.height) {
+              if (x - 2 >= 0) buffer[idx + canvas.width - 2] += error * (2 / 42);
+              if (x - 1 >= 0) buffer[idx + canvas.width - 1] += error * (4 / 42);
+              buffer[idx + canvas.width] += error * (8 / 42);
+              if (x + 1 < canvas.width) buffer[idx + canvas.width + 1] += error * (4 / 42);
+              if (x + 2 < canvas.width) buffer[idx + canvas.width + 2] += error * (2 / 42);
+            }
+            
+            if (y + 2 < canvas.height) {
+              if (x - 2 >= 0) buffer[idx + 2 * canvas.width - 2] += error * (1 / 42);
+              if (x - 1 >= 0) buffer[idx + 2 * canvas.width - 1] += error * (2 / 42);
+              buffer[idx + 2 * canvas.width] += error * (4 / 42);
+              if (x + 1 < canvas.width) buffer[idx + 2 * canvas.width + 1] += error * (2 / 42);
+              if (x + 2 < canvas.width) buffer[idx + 2 * canvas.width + 2] += error * (1 / 42);
+            }
+          } else if (algorithm === 'burkes') {
+            // Distribute error using Burkes pattern
+            if (x + 1 < canvas.width) buffer[idx + 1] += error * (8 / 32);
+            if (x + 2 < canvas.width) buffer[idx + 2] += error * (4 / 32);
+            
+            if (y + 1 < canvas.height) {
+              if (x - 2 >= 0) buffer[idx + canvas.width - 2] += error * (2 / 32);
+              if (x - 1 >= 0) buffer[idx + canvas.width - 1] += error * (4 / 32);
+              buffer[idx + canvas.width] += error * (8 / 32);
+              if (x + 1 < canvas.width) buffer[idx + canvas.width + 1] += error * (4 / 32);
+              if (x + 2 < canvas.width) buffer[idx + canvas.width + 2] += error * (2 / 32);
+            }
+          } else if (algorithm === 'sierraLite') {
+            // Distribute error using Sierra-Lite pattern
+            if (x + 1 < canvas.width) buffer[idx + 1] += error * (2 / 4);
+            
+            if (y + 1 < canvas.height) {
+              if (x - 1 >= 0) buffer[idx + canvas.width - 1] += error * (1 / 4);
+              buffer[idx + canvas.width] += error * (1 / 4);
+            }
           }
         }
       }
@@ -265,30 +377,42 @@ function processChannel(
   spacing: number,
   angle: number
 ): ImageData {
-  const width = imageData.width;
-  const height = imageData.height;
-  
-  // Extract single channel
+  // Extract channel
   const channel = extractChannel(imageData, channelIndex);
   
-  // Apply the selected algorithm
+  // Apply dithering
   let result: ImageData;
   
   switch (algorithm) {
     case 'ordered':
-      result = orderedDithering(channel, width, height, dotSize);
+      result = orderedDithering(channel, imageData.width, imageData.height, dotSize);
       break;
     case 'floydSteinberg':
-      result = floydSteinbergDithering(channel, width, height);
+      result = floydSteinbergDithering(channel, imageData.width, imageData.height);
       break;
     case 'atkinson':
-      result = atkinsonDithering(channel, width, height);
+      result = atkinsonDithering(channel, imageData.width, imageData.height);
       break;
     case 'halftone':
-      result = halftoneDithering(channel, width, height, dotSize, spacing, angle);
+      result = halftoneDithering(channel, imageData.width, imageData.height, dotSize, spacing, angle);
+      break;
+    case 'jarvisJudiceNinke':
+      result = jarvisJudiceNinkeDithering(channel, imageData.width, imageData.height);
+      break;
+    case 'stucki':
+      result = stuckiDithering(channel, imageData.width, imageData.height);
+      break;
+    case 'burkes':
+      result = burkesDithering(channel, imageData.width, imageData.height);
+      break;
+    case 'sierraLite':
+      result = sierraLiteDithering(channel, imageData.width, imageData.height);
+      break;
+    case 'random':
+      result = randomDithering(channel, imageData.width, imageData.height);
       break;
     default:
-      result = orderedDithering(channel, width, height, dotSize);
+      result = orderedDithering(channel, imageData.width, imageData.height, dotSize);
   }
   
   return result;
