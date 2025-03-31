@@ -8,6 +8,14 @@ export * from './stucki';
 export * from './burkes';
 export * from './sierraLite';
 export * from './random';
+export * from './voidAndCluster';
+export * from './blueNoise';
+export * from './riemersma';
+export * from './directBinarySearch';
+export * from './patternDithering';
+export * from './multiTone';
+export * from './imageProcessing';
+export * from './selectiveDithering';
 
 // Fix circular dependency by importing directly from individual files
 // instead of from './index'
@@ -21,6 +29,19 @@ import { stuckiDithering } from './stucki';
 import { burkesDithering } from './burkes';
 import { sierraLiteDithering } from './sierraLite';
 import { randomDithering } from './random';
+import { voidAndClusterDithering } from './voidAndCluster';
+import { blueNoiseDithering } from './blueNoise';
+import { riemersmaDithering } from './riemersma';
+import { directBinarySearchDithering } from './directBinarySearch';
+import { patternDithering, PatternType } from './patternDithering';
+import { multiToneDithering, MultiToneAlgorithm } from './multiTone';
+import { 
+  adjustBrightnessContrast, 
+  applyGamma, 
+  adjustHSL,
+  sharpen as sharpenImage,
+  blur as blurImage
+} from './imageProcessing';
 
 import { DitheringAlgorithm, ColorMode } from '../../store/useEditorStore';
 
@@ -32,7 +53,18 @@ export function processImage(
   colorMode: ColorMode,
   spacing: number,
   angle: number,
-  customColors: string[] = []
+  customColors: string[] = [],
+  brightness: number = 0,
+  gammaCorrection: number = 1.0,
+  hue: number = 0,
+  saturation: number = 0,
+  lightness: number = 0,
+  sharpness: number = 0,
+  blurRadius: number = 0,
+  patternType: PatternType = 'dots',
+  patternSize: number = 4,
+  toneLevel: number = 4,
+  multiToneAlgorithm: MultiToneAlgorithm = 'ordered'
 ): ImageData {
   // Create canvas to draw the image
   const canvas = document.createElement('canvas');
@@ -44,10 +76,42 @@ export function processImage(
   
   // Draw the image to get its pixel data
   ctx.drawImage(sourceImage, 0, 0);
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   
-  // Apply contrast adjustment
-  applyContrast(imageData, contrast);
+  // First, apply any pre-processing
+  let processedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  
+  if (contrast !== 50) {
+    // Apply contrast adjustment (0-100 range, 50 is neutral)
+    const contrastValue = ((contrast - 50) * 2); // Convert to -100 to 100 range
+    processedImageData = adjustBrightnessContrast(processedImageData, 0, contrastValue);
+  }
+  
+  // Apply specified image processing if values are non-default
+  if (brightness !== 0) {
+    processedImageData = adjustBrightnessContrast(processedImageData, brightness, 0);
+  }
+  
+  if (gammaCorrection !== 1.0) {
+    processedImageData = applyGamma(processedImageData, gammaCorrection);
+  }
+  
+  if (hue !== 0 || saturation !== 0 || lightness !== 0) {
+    processedImageData = adjustHSL(processedImageData, hue, saturation, lightness);
+  }
+  
+  if (sharpness > 0) {
+    processedImageData = sharpenImage(processedImageData, sharpness);
+  }
+  
+  if (blurRadius > 0) {
+    processedImageData = blurImage(processedImageData, blurRadius);
+  }
+  
+  // Put the processed image back on the canvas
+  ctx.putImageData(processedImageData, 0, 0);
+  
+  // Re-get the image data after processing
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   
   // Process based on color mode
   if (colorMode === 'bw') {
@@ -85,6 +149,31 @@ export function processImage(
       case 'random':
         result = randomDithering(grayscale, canvas.width, canvas.height);
         break;
+      case 'voidAndCluster':
+        result = voidAndClusterDithering(grayscale, canvas.width, canvas.height);
+        break;
+      case 'blueNoise':
+        result = blueNoiseDithering(grayscale, canvas.width, canvas.height);
+        break;
+      case 'riemersma':
+        result = riemersmaDithering(grayscale, canvas.width, canvas.height);
+        break;
+      case 'directBinarySearch':
+        result = directBinarySearchDithering(grayscale, canvas.width, canvas.height);
+        break;
+      case 'pattern':
+        // Use additional parameters from store
+        result = patternDithering(grayscale, canvas.width, canvas.height, patternType, patternSize);
+        break;
+      case 'multiTone':
+        // Use additional parameters from store
+        result = multiToneDithering(grayscale, canvas.width, canvas.height, toneLevel, multiToneAlgorithm, dotSize);
+        break;
+      case 'selective':
+        // For selective dithering, we need a default implementation since we have no regions defined by default
+        // Default to just using the standard ordered dithering
+        result = orderedDithering(grayscale, canvas.width, canvas.height, dotSize);
+        break;
       default:
         result = orderedDithering(grayscale, canvas.width, canvas.height, dotSize);
     }
@@ -102,9 +191,9 @@ export function processImage(
     const result = new ImageData(canvas.width, canvas.height);
     
     // Process each RGB channel separately with different angles
-    const redChannel = processChannel(imageData, 0, algorithm, dotSize, spacing, angle);
-    const greenChannel = processChannel(imageData, 1, algorithm, dotSize, spacing, angle + 30);
-    const blueChannel = processChannel(imageData, 2, algorithm, dotSize, spacing, angle + 60);
+    const redChannel = processChannel(imageData, 0, algorithm, dotSize, spacing, angle, patternType, patternSize, toneLevel, multiToneAlgorithm);
+    const greenChannel = processChannel(imageData, 1, algorithm, dotSize, spacing, angle + 30, patternType, patternSize, toneLevel, multiToneAlgorithm);
+    const blueChannel = processChannel(imageData, 2, algorithm, dotSize, spacing, angle + 60, patternType, patternSize, toneLevel, multiToneAlgorithm);
     
     // Combine channels
     for (let i = 0; i < result.data.length; i += 4) {
@@ -177,6 +266,36 @@ export function processImage(
         redResult = randomDithering(redGrayscale, canvas.width, canvas.height);
         greenResult = randomDithering(greenGrayscale, canvas.width, canvas.height);
         blueResult = randomDithering(blueGrayscale, canvas.width, canvas.height);
+        break;
+      case 'voidAndCluster':
+        redResult = voidAndClusterDithering(redGrayscale, canvas.width, canvas.height);
+        greenResult = voidAndClusterDithering(greenGrayscale, canvas.width, canvas.height);
+        blueResult = voidAndClusterDithering(blueGrayscale, canvas.width, canvas.height);
+        break;
+      case 'blueNoise':
+        redResult = blueNoiseDithering(redGrayscale, canvas.width, canvas.height);
+        greenResult = blueNoiseDithering(greenGrayscale, canvas.width, canvas.height);
+        blueResult = blueNoiseDithering(blueGrayscale, canvas.width, canvas.height);
+        break;
+      case 'riemersma':
+        redResult = riemersmaDithering(redGrayscale, canvas.width, canvas.height);
+        greenResult = riemersmaDithering(greenGrayscale, canvas.width, canvas.height);
+        blueResult = riemersmaDithering(blueGrayscale, canvas.width, canvas.height);
+        break;
+      case 'directBinarySearch':
+        redResult = directBinarySearchDithering(redGrayscale, canvas.width, canvas.height);
+        greenResult = directBinarySearchDithering(greenGrayscale, canvas.width, canvas.height);
+        blueResult = directBinarySearchDithering(blueGrayscale, canvas.width, canvas.height);
+        break;
+      case 'pattern':
+        redResult = patternDithering(redGrayscale, canvas.width, canvas.height, patternType, patternSize);
+        greenResult = patternDithering(greenGrayscale, canvas.width, canvas.height, patternType, patternSize);
+        blueResult = patternDithering(blueGrayscale, canvas.width, canvas.height, patternType, patternSize);
+        break;
+      case 'multiTone':
+        redResult = multiToneDithering(redGrayscale, canvas.width, canvas.height, toneLevel, multiToneAlgorithm, dotSize);
+        greenResult = multiToneDithering(greenGrayscale, canvas.width, canvas.height, toneLevel, multiToneAlgorithm, dotSize);
+        blueResult = multiToneDithering(blueGrayscale, canvas.width, canvas.height, toneLevel, multiToneAlgorithm, dotSize);
         break;
       default:
         redResult = orderedDithering(redGrayscale, canvas.width, canvas.height, dotSize);
@@ -375,7 +494,11 @@ function processChannel(
   algorithm: DitheringAlgorithm,
   dotSize: number,
   spacing: number,
-  angle: number
+  angle: number,
+  patternType: PatternType = 'dots',
+  patternSize: number = 4,
+  toneLevel: number = 4,
+  multiToneAlgorithm: MultiToneAlgorithm = 'ordered'
 ): ImageData {
   // Extract channel
   const channel = extractChannel(imageData, channelIndex);
@@ -410,6 +533,24 @@ function processChannel(
       break;
     case 'random':
       result = randomDithering(channel, imageData.width, imageData.height);
+      break;
+    case 'voidAndCluster':
+      result = voidAndClusterDithering(channel, imageData.width, imageData.height);
+      break;
+    case 'blueNoise':
+      result = blueNoiseDithering(channel, imageData.width, imageData.height);
+      break;
+    case 'riemersma':
+      result = riemersmaDithering(channel, imageData.width, imageData.height);
+      break;
+    case 'directBinarySearch':
+      result = directBinarySearchDithering(channel, imageData.width, imageData.height);
+      break;
+    case 'pattern':
+      result = patternDithering(channel, imageData.width, imageData.height, patternType, patternSize);
+      break;
+    case 'multiTone':
+      result = multiToneDithering(channel, imageData.width, imageData.height, toneLevel, multiToneAlgorithm, dotSize);
       break;
     default:
       result = orderedDithering(channel, imageData.width, imageData.height, dotSize);

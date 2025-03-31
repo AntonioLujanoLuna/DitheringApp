@@ -1,6 +1,11 @@
 import { create } from 'zustand';
+import { PatternType } from '../lib/algorithms/patternDithering';
+import { MultiToneAlgorithm } from '../lib/algorithms/multiTone';
 
-export type DitheringAlgorithm = 'ordered' | 'floydSteinberg' | 'atkinson' | 'halftone' | 'jarvisJudiceNinke' | 'stucki' | 'burkes' | 'sierraLite' | 'random';
+export type DitheringAlgorithm = 'ordered' | 'floydSteinberg' | 'atkinson' | 'halftone' | 
+  'jarvisJudiceNinke' | 'stucki' | 'burkes' | 'sierraLite' | 'random' |
+  'voidAndCluster' | 'blueNoise' | 'riemersma' | 'directBinarySearch' |
+  'pattern' | 'multiTone' | 'selective';
 export type ColorMode = 'bw' | 'cmyk' | 'rgb' | 'custom';
 
 interface EditorState {
@@ -14,6 +19,20 @@ interface EditorState {
   spacing: number;
   angle: number;
   customColors: string[];
+  // Pattern dithering parameters
+  patternType: PatternType;
+  patternSize: number;
+  // Multi-tone parameters
+  toneLevel: number;
+  multiToneAlgorithm: MultiToneAlgorithm;
+  // Image processing parameters
+  brightness: number;
+  gammaCorrection: number;
+  hue: number;
+  saturation: number;
+  lightness: number;
+  sharpness: number;
+  blur: number;
   // UI state
   isProcessing: boolean;
   // Actions
@@ -25,6 +44,17 @@ interface EditorState {
   setSpacing: (spacing: number) => void;
   setAngle: (angle: number) => void;
   setCustomColors: (colors: string[]) => void;
+  setPatternType: (type: PatternType) => void;
+  setPatternSize: (size: number) => void;
+  setToneLevel: (level: number) => void;
+  setMultiToneAlgorithm: (algorithm: MultiToneAlgorithm) => void;
+  setBrightness: (brightness: number) => void;
+  setGammaCorrection: (gamma: number) => void;
+  setHue: (hue: number) => void;
+  setSaturation: (saturation: number) => void;
+  setLightness: (lightness: number) => void;
+  setSharpness: (sharpness: number) => void;
+  setBlur: (blur: number) => void;
   setIsProcessing: (isProcessing: boolean) => void;
   resetSettings: () => void;
   loadSettings: (settings: Partial<EditorSettings>) => void;
@@ -38,6 +68,17 @@ export interface EditorSettings {
   spacing: number;
   angle: number;
   customColors: string[];
+  patternType: PatternType;
+  patternSize: number;
+  toneLevel: number;
+  multiToneAlgorithm: MultiToneAlgorithm;
+  brightness: number;
+  gammaCorrection: number;
+  hue: number;
+  saturation: number;
+  lightness: number;
+  sharpness: number;
+  blur: number;
 }
 
 const DEFAULT_SETTINGS: EditorSettings = {
@@ -48,6 +89,17 @@ const DEFAULT_SETTINGS: EditorSettings = {
   spacing: 5,
   angle: 45,
   customColors: ['#000000', '#ffffff'],
+  patternType: 'dots',
+  patternSize: 4,
+  toneLevel: 4,
+  multiToneAlgorithm: 'ordered',
+  brightness: 0,
+  gammaCorrection: 1.0,
+  hue: 0,
+  saturation: 0,
+  lightness: 0,
+  sharpness: 0,
+  blur: 0,
 };
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -65,6 +117,17 @@ export const useEditorStore = create<EditorState>((set) => ({
   setSpacing: (spacing) => set({ spacing }),
   setAngle: (angle) => set({ angle }),
   setCustomColors: (customColors) => set({ customColors }),
+  setPatternType: (patternType) => set({ patternType }),
+  setPatternSize: (patternSize) => set({ patternSize }),
+  setToneLevel: (toneLevel) => set({ toneLevel }),
+  setMultiToneAlgorithm: (multiToneAlgorithm) => set({ multiToneAlgorithm }),
+  setBrightness: (brightness) => set({ brightness }),
+  setGammaCorrection: (gammaCorrection) => set({ gammaCorrection }),
+  setHue: (hue) => set({ hue }),
+  setSaturation: (saturation) => set({ saturation }),
+  setLightness: (lightness) => set({ lightness }),
+  setSharpness: (sharpness) => set({ sharpness }),
+  setBlur: (blur) => set({ blur }),
   setIsProcessing: (isProcessing) => set({ isProcessing }),
   resetSettings: () => set({ ...DEFAULT_SETTINGS }),
   loadSettings: (settings) => set({ ...settings }),
