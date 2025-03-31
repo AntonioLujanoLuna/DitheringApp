@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Redirecting...</title>
+  <script>
+    // Single page apps for GitHub Pages
+    // Modified from: https://github.com/rafgraph/spa-github-pages
+    (function(l) {
+      if (l.search[1] === '/' ) {
+        var decoded = l.search.slice(1).split('&').map(function(s) { 
+          return s.replace(/~and~/g, '&')
+        }).join('?');
+        window.history.replaceState(null, null,
+            l.pathname.slice(0, -1) + decoded + l.hash
+        );
+      }
+      
+      // Handle routing for SPA on GitHub Pages
+      var segmentCount = 1; // For repo sites like /DitheringApp/
+      var rootPath = '/DitheringApp/';
+      var location = window.location;
+      
+      // Redirect to the index.html with the path in the location hash
+      var redirectUrl = location.protocol + '//' + location.hostname + 
+                        (location.port ? ':' + location.port : '') + 
+                        rootPath + '?' + 
+                        (location.pathname.slice(rootPath.length) 
+                          .replace(/&/g, '~and~')) + 
+                        (location.search ? '&' + location.search.slice(1) : '') + 
+                        location.hash;
+                        
+      window.location.href = redirectUrl;
+    }(window.location))
+  </script>
+  <meta http-equiv="refresh" content="0;URL='/DitheringApp/'">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      text-align: center;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <h1>Redirecting...</h1>
+    <p>If you are not redirected automatically, <a href="/DitheringApp/">click here</a>.</p>
+  </div>
+</body>
+</html>
