@@ -2,6 +2,8 @@
 import React from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
 import { usePresetStore } from '../../store/usePresetStore';
+import { PatternType } from '../../lib/algorithms/patternDithering';
+import { MultiToneAlgorithm } from '../../lib/algorithms/multiTone';
 
 interface SettingsPanelProps {
   onSavePreset: () => void;
@@ -16,6 +18,17 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onSavePreset }) => {
     spacing,
     angle,
     customColors,
+    patternType,
+    patternSize,
+    toneLevel,
+    multiToneAlgorithm,
+    brightness,
+    gammaCorrection,
+    hue,
+    saturation,
+    lightness,
+    sharpness,
+    blur,
     setAlgorithm,
     setDotSize,
     setContrast,
@@ -23,6 +36,17 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onSavePreset }) => {
     setSpacing,
     setAngle,
     setCustomColors,
+    setPatternType,
+    setPatternSize,
+    setToneLevel,
+    setMultiToneAlgorithm,
+    setBrightness,
+    setGammaCorrection,
+    setHue,
+    setSaturation,
+    setLightness,
+    setSharpness,
+    setBlur,
     resetSettings
   } = useEditorStore();
   
@@ -122,6 +146,18 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onSavePreset }) => {
           <option value="floydSteinberg">Floyd-Steinberg Dithering</option>
           <option value="atkinson">Atkinson Dithering</option>
           <option value="halftone">Halftone Dithering</option>
+          <option value="jarvisJudiceNinke">Jarvis-Judice-Ninke Dithering</option>
+          <option value="stucki">Stucki Dithering</option>
+          <option value="burkes">Burkes Dithering</option>
+          <option value="sierraLite">Sierra Lite Dithering</option>
+          <option value="random">Random Dithering</option>
+          <option value="voidAndCluster">Void and Cluster Dithering</option>
+          <option value="blueNoise">Blue Noise Dithering</option>
+          <option value="riemersma">Riemersma Dithering</option>
+          <option value="directBinarySearch">Direct Binary Search Dithering</option>
+          <option value="pattern">Pattern Dithering</option>
+          <option value="multiTone">Multi-tone Dithering</option>
+          <option value="selective">Selective Dithering</option>
         </select>
       </div>
       
@@ -268,6 +304,235 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onSavePreset }) => {
           </div>
         </>
       )}
+
+      {/* Pattern Dithering Controls */}
+      {algorithm === 'pattern' && (
+        <>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Pattern Type
+            </label>
+            
+            <select
+              value={patternType}
+              onChange={(e) => setPatternType(e.target.value as PatternType)}
+              className="input"
+            >
+              <option value="dots">Dots</option>
+              <option value="lines">Lines</option>
+              <option value="crosses">Crosses</option>
+              <option value="diamonds">Diamonds</option>
+              <option value="waves">Waves</option>
+              <option value="bricks">Bricks</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <label className="block text-sm font-medium text-gray-700">
+                Pattern Size: {patternSize}px
+              </label>
+            </div>
+            
+            <input
+              type="range"
+              min="2"
+              max="16"
+              value={patternSize}
+              onChange={(e) => setPatternSize(parseInt(e.target.value))}
+              className="slider"
+            />
+          </div>
+        </>
+      )}
+
+      {/* Multi-tone Dithering Controls */}
+      {algorithm === 'multiTone' && (
+        <>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Multi-tone Algorithm
+            </label>
+            
+            <select
+              value={multiToneAlgorithm}
+              onChange={(e) => setMultiToneAlgorithm(e.target.value as MultiToneAlgorithm)}
+              className="input"
+            >
+              <option value="ordered">Ordered</option>
+              <option value="errorDiffusion">Error Diffusion</option>
+              <option value="blueNoise">Blue Noise</option>
+            </select>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <label className="block text-sm font-medium text-gray-700">
+                Tone Levels: {toneLevel}
+              </label>
+            </div>
+            
+            <input
+              type="range"
+              min="2"
+              max="8"
+              value={toneLevel}
+              onChange={(e) => setToneLevel(parseInt(e.target.value))}
+              className="slider"
+            />
+          </div>
+        </>
+      )}
+
+      {/* Selective Dithering Controls */}
+      {algorithm === 'selective' && (
+        <div className="p-4 bg-gray-100 rounded-lg">
+          <h3 className="text-md font-semibold mb-2">Selective Dithering</h3>
+          <p className="text-sm text-gray-700 mb-2">
+            This feature requires selecting regions and assigning different algorithms to each region.
+          </p>
+          <p className="text-sm text-gray-700">
+            Please use the region selection tools in the editor to define areas for different dithering algorithms.
+          </p>
+          
+          {/* Placeholder for region selection tools - would be implemented in future versions */}
+          <div className="mt-3 p-3 border border-dashed border-gray-400 rounded-lg text-center text-sm text-gray-500">
+            Region selection tools coming soon
+          </div>
+        </div>
+      )}
+
+      {/* Image Processing Controls - always visible */}
+      <div className="pt-4 border-t border-gray-200">
+        <h3 className="text-lg font-semibold mb-3">Image Processing</h3>
+        
+        {/* Brightness slider */}
+        <div className="space-y-2 mt-3">
+          <div className="flex justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Brightness: {brightness}
+            </label>
+          </div>
+          
+          <input
+            type="range"
+            min="-100"
+            max="100"
+            value={brightness}
+            onChange={(e) => setBrightness(parseInt(e.target.value))}
+            className="slider"
+          />
+        </div>
+        
+        {/* Gamma correction slider */}
+        <div className="space-y-2 mt-3">
+          <div className="flex justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Gamma: {gammaCorrection.toFixed(1)}
+            </label>
+          </div>
+          
+          <input
+            type="range"
+            min="0.1"
+            max="3"
+            step="0.1"
+            value={gammaCorrection}
+            onChange={(e) => setGammaCorrection(parseFloat(e.target.value))}
+            className="slider"
+          />
+        </div>
+
+        {/* HSL Controls */}
+        <div className="space-y-2 mt-3">
+          <div className="flex justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Hue: {hue}°
+            </label>
+          </div>
+          
+          <input
+            type="range"
+            min="-180"
+            max="180"
+            value={hue}
+            onChange={(e) => setHue(parseInt(e.target.value))}
+            className="slider"
+          />
+        </div>
+        
+        <div className="space-y-2 mt-3">
+          <div className="flex justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Saturation: {saturation}
+            </label>
+          </div>
+          
+          <input
+            type="range"
+            min="-100"
+            max="100"
+            value={saturation}
+            onChange={(e) => setSaturation(parseInt(e.target.value))}
+            className="slider"
+          />
+        </div>
+        
+        <div className="space-y-2 mt-3">
+          <div className="flex justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Lightness: {lightness}
+            </label>
+          </div>
+          
+          <input
+            type="range"
+            min="-100"
+            max="100"
+            value={lightness}
+            onChange={(e) => setLightness(parseInt(e.target.value))}
+            className="slider"
+          />
+        </div>
+
+        {/* Sharpness slider */}
+        <div className="space-y-2 mt-3">
+          <div className="flex justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Sharpness: {sharpness}
+            </label>
+          </div>
+          
+          <input
+            type="range"
+            min="0"
+            max="5"
+            step="0.1"
+            value={sharpness}
+            onChange={(e) => setSharpness(parseFloat(e.target.value))}
+            className="slider"
+          />
+        </div>
+        
+        {/* Blur slider */}
+        <div className="space-y-2 mt-3">
+          <div className="flex justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Blur: {blur}
+            </label>
+          </div>
+          
+          <input
+            type="range"
+            min="0"
+            max="10"
+            value={blur}
+            onChange={(e) => setBlur(parseInt(e.target.value))}
+            className="slider"
+          />
+        </div>
+      </div>
     </div>
   );
 };
