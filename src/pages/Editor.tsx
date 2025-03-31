@@ -69,7 +69,7 @@ const Editor: React.FC = () => {
       // Convert canvas to data URL
       const processedUrl = canvas.toDataURL('image/png');
       
-      // Save the image data
+      // Use the gallery store to save the image
       await saveImageToCollection({
         title,
         description: description || null,
