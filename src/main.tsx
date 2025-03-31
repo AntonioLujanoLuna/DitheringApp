@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
+import { registerServiceWorker } from './lib/registerServiceWorker'
 
 // For debugging - display a message in console to confirm script is running
 console.log('Dithering App initializing...');
@@ -10,6 +11,9 @@ console.log('Running on GitHub Pages: ', window.location.hostname.includes('gith
 // Get the base path from the <base> tag or use the default
 const basePath = import.meta.env.BASE_URL || '/';
 console.log('Base path:', basePath);
+
+// Register service worker for PWA support
+registerServiceWorker();
 
 // Use createRoot API
 const rootElement = document.getElementById('root');
