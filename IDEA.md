@@ -165,12 +165,6 @@ Verify proper HTTPS configuration
 Monetization Strategy
 A simplified monetization approach due to the absence of a community platform:
 
-Donation Model
-
-GitHub Sponsors integration
-Ko-fi or Buy Me a Coffee links
-PayPal donation options
-
 
 Ad Placement (Optional)
 
