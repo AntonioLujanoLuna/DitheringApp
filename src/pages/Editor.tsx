@@ -57,7 +57,7 @@ const Editor: React.FC = () => {
   }, []);
 
   const handleSaveImage = async () => {
-    if (!originalImage || !user) return;
+    if (!originalImage) return;
     
     try {
       setIsSaving(true);
@@ -66,70 +66,25 @@ const Editor: React.FC = () => {
       const canvas = document.querySelector('canvas') as HTMLCanvasElement;
       if (!canvas) throw new Error('Canvas not found');
       
-      // Convert canvas to Blob
-      const processedBlob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(blob => {
-          if (blob) resolve(blob);
-          else reject(new Error('Failed to create blob from canvas'));
-        }, 'image/png');
+      // Convert canvas to data URL
+      const processedUrl = canvas.toDataURL('image/png');
+      
+      // Save the image data
+      await saveImageToCollection({
+        title,
+        description: description || null,
+        originalUrl: originalImage.src,
+        processedUrl,
+        processingSettings: {
+          algorithm,
+          dotSize,
+          contrast,
+          colorMode,
+          spacing,
+          angle,
+          customColors
+        }
       });
-      
-      // Convert original image to Blob
-      const originalBlob = await fetch(originalImage.src).then(res => res.blob());
-      
-      // Upload original image
-      const originalFilename = `original-${Date.now()}.png`;
-      const { data: originalData, error: originalError } = await supabase
-        .storage
-        .from('original-images')
-        .upload(`${user.id}/${originalFilename}`, originalBlob);
-        
-      if (originalError) throw originalError;
-      
-      // Upload processed image
-      const processedFilename = `processed-${Date.now()}.png`;
-      const { data: processedData, error: processedError } = await supabase
-        .storage
-        .from('processed-images')
-        .upload(`${user.id}/${processedFilename}`, processedBlob);
-        
-      if (processedError) throw processedError;
-      
-      // Get public URLs for the uploaded files
-      const { data: originalUrl } = supabase
-        .storage
-        .from('original-images')
-        .getPublicUrl(`${user.id}/${originalFilename}`);
-        
-      const { data: processedUrl } = supabase
-        .storage
-        .from('processed-images')
-        .getPublicUrl(`${user.id}/${processedFilename}`);
-      
-      // Save to database
-      const { error: dbError } = await supabase
-        .from('images')
-        .insert([
-          {
-            user_id: user.id,
-            title,
-            description: description || null,
-            original_url: originalUrl.publicUrl,
-            processed_url: processedUrl.publicUrl,
-            is_public: isPublic,
-            processing_settings: {
-              algorithm,
-              dotSize,
-              contrast,
-              colorMode,
-              spacing,
-              angle,
-              customColors
-            }
-          }
-        ]);
-        
-      if (dbError) throw dbError;
       
       toast.success('Image saved successfully!');
       setSaveModalOpen(false);
@@ -147,8 +102,6 @@ const Editor: React.FC = () => {
   };
 
   const handleSavePreset = async () => {
-    if (!user) return;
-    
     try {
       setIsSaving(true);
       
@@ -162,8 +115,7 @@ const Editor: React.FC = () => {
           spacing,
           angle,
           customColors
-        },
-        presetIsPublic
+        }
       );
       
       toast.success('Preset saved successfully!');
@@ -171,7 +123,6 @@ const Editor: React.FC = () => {
       
       // Reset form
       setPresetName('');
-      setPresetIsPublic(false);
       
     } catch (error: any) {
       console.error('Error saving preset:', error);
@@ -187,20 +138,10 @@ const Editor: React.FC = () => {
       return;
     }
     
-    if (!user) {
-      toast.warning('Please log in to save your image.');
-      return;
-    }
-    
     setSaveModalOpen(true);
   };
-
+  
   const openSaveAsPresetModal = () => {
-    if (!user) {
-      toast.warning('Please log in to save presets.');
-      return;
-    }
-    
     setSaveAsPresetModalOpen(true);
   };
 
