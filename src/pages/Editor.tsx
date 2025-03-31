@@ -7,8 +7,6 @@ import MobileSettingsPanel from '../components/ui/MobileSettingsPanel';
 import BatchProcessor from '../components/batch/BatchProcessor';
 import { useEditorStore } from '../store/useEditorStore';
 import { usePresetStore } from '../store/usePresetStore';
-import { useAuthStore } from '../store/useAuthStore';
-import { supabase } from '../lib/supabase/client';
 import Button from '../components/ui/Button';
 
 const Editor: React.FC = () => {
@@ -36,7 +34,6 @@ const Editor: React.FC = () => {
   } = useEditorStore();
   
   const { createPreset } = usePresetStore();
-  const { user } = useAuthStore();
 
   // Detect mobile viewport
   useEffect(() => {

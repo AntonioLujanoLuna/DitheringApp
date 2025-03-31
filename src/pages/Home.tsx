@@ -1,9 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuthStore } from '../store/useAuthStore';
 
 const Home: React.FC = () => {
-  const { user } = useAuthStore();
   
   return (
     <div>
