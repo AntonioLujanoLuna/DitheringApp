@@ -4,6 +4,7 @@ import { useEditorStore } from '../../store/useEditorStore';
 import { processGif, downloadProcessedGif } from '../../lib/animation/gifProcessor';
 import Button from '../ui/Button';
 import { isWebGLSupported } from '../../lib/webgl/webglDithering';
+import { isWasmSupported } from '../../lib/wasm/ditheringWasm';
 
 const AnimationProcessor: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -12,6 +13,7 @@ const AnimationProcessor: React.FC = () => {
   const [processedGifUrl, setProcessedGifUrl] = useState<string | null>(null);
   const [originalGifUrl, setOriginalGifUrl] = useState<string | null>(null);
   const [usingWebGL, setUsingWebGL] = useState(false);
+  const [usingWasm, setUsingWasm] = useState(false);
   
   const {
     algorithm,
@@ -45,6 +47,12 @@ const AnimationProcessor: React.FC = () => {
       // Check if WebGL can be used
       setUsingWebGL(isWebGLSupported() && 
         (algorithm === 'ordered' || algorithm === 'halftone' || algorithm === 'pattern'));
+      
+      // Check if WebAssembly can be used
+      setUsingWasm(isWasmSupported() && 
+        (algorithm === 'ordered' || algorithm === 'floydSteinberg' || 
+         algorithm === 'atkinson' || algorithm === 'halftone') && 
+        colorMode === 'bw');
     }
   };
   
@@ -116,7 +124,8 @@ const AnimationProcessor: React.FC = () => {
         
         <p className="text-gray-600 dark:text-gray-400 mb-4">
           Process GIF animations with dithering effects.
-          {usingWebGL && <span className="ml-1 text-primary-600">Using GPU acceleration!</span>}
+          {usingWasm && <span className="ml-1 text-emerald-600 font-medium">Using WebAssembly acceleration!</span>}
+          {!usingWasm && usingWebGL && <span className="ml-1 text-primary-600">Using GPU acceleration!</span>}
         </p>
         
         <div className="space-y-4">
@@ -194,7 +203,7 @@ const AnimationProcessor: React.FC = () => {
                 )}
                 
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   onClick={resetProcessor}
                 >
                   Select Different GIF

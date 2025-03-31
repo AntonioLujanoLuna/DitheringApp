@@ -71,7 +71,7 @@ export default defineConfig({
   ],
   base: '/DitheringApp/', // GitHub Pages repository name
   build: {
-    outDir: 'docs', // GitHub Pages can serve from /docs folder
+    outDir: 'dist', // Changed from 'docs' to 'dist' to match GitHub Action
     assetsDir: 'assets', // Keep assets in a separate folder
     minify: true,
     sourcemap: false,
@@ -84,7 +84,7 @@ export default defineConfig({
   optimizeDeps: {
     exclude: [] // Add any packages that should not be pre-bundled
   },
-  // Support WebAssembly
+  // Support WebAssembly with COOP/COEP headers
   server: {
     headers: {
       'Cross-Origin-Embedder-Policy': 'require-corp',

@@ -8,6 +8,15 @@ import { getPatternMatrix } from '../algorithms/patternDithering';
 import type { PatternType } from '../algorithms/patternDithering';
 import { processImage } from '../algorithms';
 import { isWebGLSupported } from '../webgl/webglDithering';
+// Import WebAssembly functions
+import { 
+  orderedDitheringWasm, 
+  floydSteinbergDitheringWasm, 
+  atkinsonDitheringWasm, 
+  halftoneDitheringWasm,
+  sobelEdgeDetectionWasm,
+  isWasmSupported
+} from '../wasm/ditheringWasm';
 
 // GIF frame extraction types
 interface GifFrame {
@@ -57,8 +66,13 @@ export async function processGif(
   const processedFrames: ImageData[] = [];
   const delays: number[] = [];
   
+  // Check for WebGL and WebAssembly support
   const useWebGL = isWebGLSupported() && 
     (algorithm === 'ordered' || algorithm === 'halftone' || algorithm === 'pattern');
+  
+  const useWebAssembly = isWasmSupported() && 
+    (algorithm === 'ordered' || algorithm === 'floydSteinberg' || 
+     algorithm === 'atkinson' || algorithm === 'halftone');
   
   // Process all frames with the selected algorithm
   for (let i = 0; i < frames.length; i++) {
@@ -67,7 +81,84 @@ export async function processGif(
     
     let processedFrame: ImageData;
     
-    if (useWebGL) {
+    if (useWebAssembly && colorMode === 'bw') {
+      // Use WebAssembly for monochrome processing
+      // Convert the image data to grayscale first
+      const grayscale = new Uint8ClampedArray(frame.imageData.width * frame.imageData.height);
+      
+      for (let j = 0; j < frame.imageData.data.length; j += 4) {
+        // Convert to grayscale using standard luminance formula
+        grayscale[j/4] = Math.round(
+          0.299 * frame.imageData.data[j] + 
+          0.587 * frame.imageData.data[j+1] + 
+          0.114 * frame.imageData.data[j+2]
+        );
+      }
+      
+      // Adjust contrast if needed
+      if (contrast !== 50) {
+        const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+        for (let j = 0; j < grayscale.length; j++) {
+          const adjustedValue = factor * (grayscale[j] - 128) + 128;
+          grayscale[j] = Math.max(0, Math.min(255, Math.round(adjustedValue)));
+        }
+      }
+      
+      // Process using appropriate WebAssembly function
+      let ditheredGrayscale: Uint8ClampedArray;
+      
+      if (algorithm === 'ordered') {
+        ditheredGrayscale = await orderedDitheringWasm(
+          grayscale, 
+          frame.imageData.width, 
+          frame.imageData.height, 
+          dotSize
+        );
+      } else if (algorithm === 'floydSteinberg') {
+        ditheredGrayscale = await floydSteinbergDitheringWasm(
+          grayscale, 
+          frame.imageData.width, 
+          frame.imageData.height, 
+          128 // threshold
+        );
+      } else if (algorithm === 'atkinson') {
+        ditheredGrayscale = await atkinsonDitheringWasm(
+          grayscale, 
+          frame.imageData.width, 
+          frame.imageData.height, 
+          128 // threshold
+        );
+      } else if (algorithm === 'halftone') {
+        ditheredGrayscale = await halftoneDitheringWasm(
+          grayscale, 
+          frame.imageData.width, 
+          frame.imageData.height, 
+          dotSize,
+          spacing,
+          angle
+        );
+      } else {
+        // Fallback - should not happen due to the check above
+        ditheredGrayscale = grayscale;
+      }
+      
+      // Create new ImageData from the dithered grayscale
+      const ditheredData = new Uint8ClampedArray(frame.imageData.data.length);
+      
+      for (let j = 0; j < ditheredGrayscale.length; j++) {
+        const pixelValue = ditheredGrayscale[j];
+        ditheredData[j * 4] = pixelValue;     // R
+        ditheredData[j * 4 + 1] = pixelValue; // G
+        ditheredData[j * 4 + 2] = pixelValue; // B
+        ditheredData[j * 4 + 3] = 255;        // A (fully opaque)
+      }
+      
+      processedFrame = new ImageData(
+        ditheredData, 
+        frame.imageData.width, 
+        frame.imageData.height
+      );
+    } else if (useWebGL) {
       // Use WebGL acceleration
       processedFrame = processImageWithWebGL(
         frame.imageData,

@@ -61,6 +61,35 @@ let wasmExports: DitheringWasmExports | null = null;
 let isLoading = false;
 let loadPromise: Promise<void> | null = null;
 
+// Check if WebAssembly is supported
+export function isWasmSupported(): boolean {
+  const supported = (
+    typeof WebAssembly === 'object' &&
+    typeof WebAssembly.instantiate === 'function' &&
+    typeof WebAssembly.Memory === 'function'
+  );
+  
+  // Check if we previously had a loading error
+  const hadLoadError = localStorage.getItem('wasm_load_error') === 'true';
+  
+  if (hadLoadError) {
+    console.warn('WebAssembly was previously unable to load, disabling support');
+    return false;
+  }
+  
+  return supported;
+}
+
+// Track WebAssembly loading success/failure
+export function setWasmLoadError(hasError: boolean): void {
+  if (hasError) {
+    localStorage.setItem('wasm_load_error', 'true');
+    console.error('WebAssembly loading failed, disabling for future requests');
+  } else {
+    localStorage.removeItem('wasm_load_error');
+  }
+}
+
 // Asynchronously load the WebAssembly module
 export async function loadWasmModule(): Promise<void> {
   if (wasmModule !== null) {
@@ -75,9 +104,20 @@ export async function loadWasmModule(): Promise<void> {
   
   loadPromise = (async () => {
     try {
-      // In a real implementation, the path would be to the compiled .wasm file
-      // This is a placeholder - the actual WASM file would be built from Rust/C++ source
-      const response = await fetch('/assets/dithering_wasm.wasm');
+      // Get the base URL from Vite's import.meta.env or use a default
+      const base = (window as any).__VITE_BASE_URL__ || '/DitheringApp/';
+      
+      // Use the correct path considering GitHub Pages base path
+      // We're using a relative path with the base to avoid issues with GitHub Pages subdirectory
+      const wasmPath = `${base}assets/dithering_wasm.wasm`;
+      
+      console.log(`Loading WebAssembly module from: ${wasmPath}`);
+      const response = await fetch(wasmPath);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch WebAssembly module: ${response.status} ${response.statusText}`);
+      }
+      
       const wasmBytes = await response.arrayBuffer();
       
       wasmModule = await WebAssembly.instantiate(wasmBytes, {
@@ -88,8 +128,14 @@ export async function loadWasmModule(): Promise<void> {
       });
       
       wasmExports = wasmModule.instance.exports as unknown as DitheringWasmExports;
+      console.log('WebAssembly module loaded successfully');
+      
+      // Mark successful loading
+      setWasmLoadError(false);
     } catch (error) {
       console.error('Failed to load WebAssembly module:', error);
+      // Mark the error so we don't try again in this session
+      setWasmLoadError(true);
       throw error;
     } finally {
       isLoading = false;
@@ -279,13 +325,4 @@ export async function sobelEdgeDetectionWasm(
   wasmExports.deallocate(outputPtr, grayscale.length);
   
   return result;
-}
-
-// Check if WebAssembly is supported
-export function isWasmSupported(): boolean {
-  return (
-    typeof WebAssembly === 'object' &&
-    typeof WebAssembly.instantiate === 'function' &&
-    typeof WebAssembly.Memory === 'function'
-  );
 } 
