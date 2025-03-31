@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import ImageCard from '../components/gallery/ImageCard';
 import { ImageItem } from '../store/useGalleryStore';
 import Button from '../components/ui/Button';
@@ -27,6 +27,8 @@ const GalleryGrid: React.FC<GalleryGridProps> = ({
   emptyMessage = 'No images found'
 }) => {
   const [loadMoreLoading, setLoadMoreLoading] = React.useState(false);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   
   const handleLoadMore = async () => {
     if (loadMoreLoading || !hasMore) return;
@@ -40,6 +42,25 @@ const GalleryGrid: React.FC<GalleryGridProps> = ({
       setLoadMoreLoading(false);
     }
   };
+  
+  // Setup IntersectionObserver for auto-loading when scrolling
+  const lastImageElementRef = useCallback((node: HTMLDivElement | null) => {
+    if (loadMoreLoading) return;
+    
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+    
+    observerRef.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        handleLoadMore();
+      }
+    }, { rootMargin: '200px' });
+    
+    if (node) {
+      observerRef.current.observe(node);
+    }
+  }, [loadMoreLoading, hasMore]);
   
   if (isLoading && images.length === 0) {
     return (
@@ -75,20 +96,27 @@ const GalleryGrid: React.FC<GalleryGridProps> = ({
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {images.map(image => (
-          <ImageCard
-            key={image.id}
-            image={image}
-            onLike={onLike}
-            onUnlike={onUnlike}
-            onDelete={onDelete}
-            onApplySettings={onApplySettings}
-          />
+        {images.map((image, index) => (
+          <div 
+            key={image.id} 
+            ref={index === images.length - 5 ? lastImageElementRef : null}
+          >
+            <ImageCard
+              image={image}
+              onLike={onLike}
+              onUnlike={onUnlike}
+              onDelete={onDelete}
+              onApplySettings={onApplySettings}
+            />
+          </div>
         ))}
       </div>
       
       {hasMore && (
-        <div className="flex justify-center mt-8">
+        <div 
+          className="flex justify-center mt-8" 
+          ref={loadMoreRef}
+        >
           <Button
             onClick={handleLoadMore}
             isLoading={loadMoreLoading}

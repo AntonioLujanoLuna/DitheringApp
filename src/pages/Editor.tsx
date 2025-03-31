@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
 import ImageUploader from '../components/editor/ImageUploader';
 import ImagePreview from '../components/editor/ImagePreview';
 import SettingsPanel from '../components/editor/SettingsPanel';
 import MobileSettingsPanel from '../components/ui/MobileSettingsPanel';
 import BatchProcessor from '../components/batch/BatchProcessor';
+import AnimationProcessor from '../components/animation/AnimationProcessor';
 import ImageManipulation from '../components/editor/ImageManipulation';
 import KeyboardShortcutsModal from '../components/ui/KeyboardShortcutsModal';
-import { useEditorStore } from '../store/useEditorStore';
+import { useEditorStore, EditorSettings } from '../store/useEditorStore';
 import { usePresetStore } from '../store/usePresetStore';
 import { useGalleryStore } from '../store/useGalleryStore';
 import { useUserStore } from '../store/useUserStore';
@@ -24,77 +26,50 @@ const Editor: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showBatchProcessor, setShowBatchProcessor] = useState(false);
+  const [showAnimationProcessor, setShowAnimationProcessor] = useState(false);
   const [showImageManipulation, setShowImageManipulation] = useState(false);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareLink, setShareLink] = useState('');
   
   const { darkMode, toggleDarkMode } = useThemeStore();
   const { addToHistory, undo, redo } = useUserStore();
   
   const { 
     originalImage, 
-    algorithm, 
-    dotSize, 
-    contrast, 
-    colorMode, 
-    spacing, 
+    algorithm,
+    dotSize,
+    contrast,
+    colorMode,
+    spacing,
     angle,
     customColors,
     patternType,
     patternSize,
-    toneLevel,
-    multiToneAlgorithm,
-    brightness,
-    gammaCorrection,
-    hue,
-    saturation,
-    lightness,
-    sharpness,
-    blur,
-    setOriginalImage,
-    setAlgorithm,
-    setDotSize,
-    setContrast,
-    setColorMode,
-    setSpacing,
-    setAngle,
-    setCustomColors,
-    setPatternType,
-    setPatternSize,
-    setToneLevel,
-    setMultiToneAlgorithm,
-    setBrightness,
-    setGammaCorrection,
-    setHue,
-    setSaturation,
-    setLightness,
-    setSharpness,
-    setBlur,
-    loadSettings
+    loadSettings 
   } = useEditorStore();
   
   const { createPreset } = usePresetStore();
   const { saveImageToCollection } = useGalleryStore();
-
+  const navigate = useNavigate();
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  
   // Detect mobile viewport
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth < 1024);
+      setIsMobile(window.innerWidth < 768);
     };
     
-    // Set initial value
     handleResize();
-    
-    // Add event listener
     window.addEventListener('resize', handleResize);
     
-    // Clean up
     return () => {
       window.removeEventListener('resize', handleResize);
     };
   }, []);
   
-  // Get current settings as an object
-  const getCurrentSettings = () => {
+  // Get current settings for saving or sharing
+  const getCurrentSettings = (): EditorSettings => {
     return {
       algorithm,
       dotSize,
@@ -105,150 +80,213 @@ const Editor: React.FC = () => {
       customColors,
       patternType,
       patternSize,
-      toneLevel,
-      multiToneAlgorithm,
-      brightness,
-      gammaCorrection,
-      hue,
-      saturation,
-      lightness,
-      sharpness,
-      blur
+      brightness: 0,
+      gamma: 1.0,
+      hue: 0,
+      saturation: 0,
+      lightness: 0,
+      sharpness: 0,
+      blur: 0,
+      toneLevels: 0,
+      toneDistribution: 'linear',
+      invert: false
     };
   };
   
-  // Add current state to history before making changes
+  // Save state to history before making changes
   const saveToHistory = () => {
-    if (!originalImage) return;
-    
-    addToHistory(getCurrentSettings());
+    if (originalImage) {
+      addToHistory(getCurrentSettings());
+    }
   };
   
-  // Handle undo
+  // Undo
   const handleUndo = () => {
-    if (!originalImage) return;
-    
-    const previousSettings = undo();
-    if (previousSettings) {
-      loadSettings(previousSettings);
-      toast.info('Undid last change');
-    } else {
-      toast.warning('Nothing to undo');
-    }
+    undo();
   };
   
-  // Handle redo
+  // Redo
   const handleRedo = () => {
-    if (!originalImage) return;
-    
-    const nextSettings = redo();
-    if (nextSettings) {
-      loadSettings(nextSettings);
-      toast.info('Redid last change');
-    } else {
-      toast.warning('Nothing to redo');
-    }
+    redo();
   };
-
+  
+  // Handle save image
   const handleSaveImage = async () => {
-    if (!originalImage) return;
-    
-    try {
-      setIsSaving(true);
-      
-      // Get the processed image from the canvas
-      const canvas = document.querySelector('canvas') as HTMLCanvasElement;
-      if (!canvas) throw new Error('Canvas not found');
-      
-      // Convert canvas to data URL
-      const processedUrl = canvas.toDataURL('image/png');
-      
-      // Use the gallery store to save the image
-      await saveImageToCollection({
-        title,
-        description: description || null,
-        originalUrl: originalImage.src,
-        processedUrl,
-        processingSettings: getCurrentSettings()
-      });
-      
-      toast.success('Image saved successfully!');
-      setSaveModalOpen(false);
-      
-      // Reset form
-      setTitle('');
-      setDescription('');
-      
-    } catch (error: any) {
-      console.error('Error saving image:', error);
-      toast.error(`Error saving image: ${error.message}`);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleSavePreset = async () => {
-    try {
-      setIsSaving(true);
-      
-      await createPreset(
-        presetName, 
-        getCurrentSettings()
-      );
-      
-      toast.success('Preset saved successfully!');
-      setSaveAsPresetModalOpen(false);
-      
-      // Reset form
-      setPresetName('');
-      
-    } catch (error: any) {
-      console.error('Error saving preset:', error);
-      toast.error(`Error saving preset: ${error.message}`);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const openSaveModal = () => {
-    if (!originalImage) {
-      toast.warning('Please upload an image first.');
+    if (!title.trim()) {
+      toast.error('Please enter a title for your image');
       return;
     }
     
+    if (!originalImage) {
+      toast.error('Please upload an image first');
+      return;
+    }
+    
+    setIsSaving(true);
+    
+    try {
+      // Get the processed image from the canvas
+      const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+      const processedUrl = canvas.toDataURL('image/png');
+      
+      // Save to collection
+      await saveImageToCollection({
+        title,
+        description: description || null,
+        processedUrl,
+        originalUrl: originalImage.src,
+        processingSettings: getCurrentSettings()
+      });
+      
+      // Add sharing options
+      setShareLink('');
+      setShareModalOpen(false);
+      setSaveModalOpen(false);
+      setTitle('');
+      setDescription('');
+      
+      // Show success with share option
+      toast.success(
+        <div>
+          Image saved to collection!
+          <button 
+            onClick={() => openShareModal()} 
+            className="ml-2 text-primary-700 underline"
+          >
+            Share it
+          </button>
+        </div>
+      );
+    } catch (error: any) {
+      console.error('Error saving image:', error);
+      toast.error('Failed to save image');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Handle save preset
+  const handleSavePreset = async () => {
+    if (!presetName.trim()) {
+      toast.error('Please enter a name for your preset');
+      return;
+    }
+    
+    try {
+      setIsSaving(true);
+      
+      // Create new preset
+      await createPreset({
+        name: presetName,
+        settings: getCurrentSettings()
+      });
+      
+      toast.success('Preset saved successfully!');
+      setSaveAsPresetModalOpen(false);
+      setPresetName('');
+    } catch (error: any) {
+      console.error('Error saving preset:', error);
+      toast.error('Failed to save preset');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  const openSaveModal = () => {
     setSaveModalOpen(true);
   };
   
   const openSaveAsPresetModal = () => {
     setSaveAsPresetModalOpen(true);
   };
-
+  
   const handleClearImage = () => {
-    // Show confirmation before clearing
-    if (window.confirm('Are you sure you want to clear the current image? Any unsaved changes will be lost.')) {
-      setOriginalImage(null);
-      toast.info('Image cleared. Upload a new image to continue.');
+    if (window.confirm('Are you sure you want to clear this image?')) {
+      // Clear the image (implementation depends on your store setup)
+      window.location.reload();
     }
   };
   
   const openImageManipulation = () => {
-    if (!originalImage) {
-      toast.warning('Please upload an image first.');
-      return;
-    }
-    
-    // Save current state before opening manipulation tool
-    saveToHistory();
     setShowImageManipulation(true);
   };
   
   const triggerImageUpload = () => {
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    if (fileInput) fileInput.click();
+    if (fileInput) {
+      fileInput.click();
+    }
   };
   
   const toggleShortcutsModal = () => {
     setShowKeyboardShortcuts(!showKeyboardShortcuts);
+  };
+  
+  const openShareModal = () => {
+    if (!originalImage) {
+      toast.error('Please process an image first');
+      return;
+    }
+    
+    // Get canvas reference from ImagePreview component
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    if (!canvas) {
+      toast.error('Cannot find processed image');
+      return;
+    }
+    
+    canvasRef.current = canvas;
+    setShareModalOpen(true);
+    
+    // Generate sharing data
+    const settings = getCurrentSettings();
+    createSharingLink(settings);
+  };
+  
+  const createSharingLink = (settings: EditorSettings) => {
+    // Create URL parameters from settings
+    const params = new URLSearchParams();
+    
+    if (settings.algorithm) params.append('algorithm', settings.algorithm);
+    if (settings.dotSize !== undefined) params.append('dotSize', settings.dotSize.toString());
+    if (settings.contrast !== undefined) params.append('contrast', settings.contrast.toString());
+    if (settings.colorMode) params.append('colorMode', settings.colorMode);
+    if (settings.spacing !== undefined) params.append('spacing', settings.spacing.toString());
+    if (settings.angle !== undefined) params.append('angle', settings.angle.toString());
+    if (settings.customColors && settings.customColors.length) 
+      params.append('colors', settings.customColors.join(','));
+    
+    // Add preview image if available
+    if (canvasRef.current) {
+      // Create a smaller preview image
+      const previewCanvas = document.createElement('canvas');
+      const maxSize = 300; // Max width or height for preview
+      
+      // Scale to fit within maxSize
+      const aspectRatio = canvasRef.current.width / canvasRef.current.height;
+      let previewWidth, previewHeight;
+      
+      if (aspectRatio > 1) {
+        previewWidth = maxSize;
+        previewHeight = maxSize / aspectRatio;
+      } else {
+        previewHeight = maxSize;
+        previewWidth = maxSize * aspectRatio;
+      }
+      
+      previewCanvas.width = previewWidth;
+      previewCanvas.height = previewHeight;
+      
+      const ctx = previewCanvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(canvasRef.current, 0, 0, previewWidth, previewHeight);
+        const previewDataUrl = previewCanvas.toDataURL('image/jpeg', 0.7);
+        params.append('preview', previewDataUrl);
+      }
+    }
+    
+    const shareUrl = `${window.location.origin}/#/share?${params.toString()}`;
+    setShareLink(shareUrl);
   };
   
   // Define keyboard shortcuts
@@ -304,6 +342,13 @@ const Editor: React.FC = () => {
       key: 'Delete',
       action: handleClearImage,
       description: 'Clear current image'
+    },
+    {
+      key: 's',
+      shift: true,
+      ctrl: true,
+      action: openShareModal,
+      description: 'Share current settings'
     }
   ]);
 
@@ -323,17 +368,60 @@ const Editor: React.FC = () => {
             </svg>
             Shortcuts
           </Button>
-          <Button 
-            onClick={() => setShowBatchProcessor(!showBatchProcessor)}
-            variant="secondary"
-          >
-            {showBatchProcessor ? 'Single Image Mode' : 'Batch Processing'}
-          </Button>
+          
+          <div className="dropdown dropdown-end">
+            <Button 
+              variant="secondary"
+              className="flex items-center gap-2"
+            >
+              Processing Mode
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </Button>
+            <ul className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-10">
+              <li>
+                <a 
+                  onClick={() => {
+                    setShowBatchProcessor(false);
+                    setShowAnimationProcessor(false);
+                  }}
+                  className={!showBatchProcessor && !showAnimationProcessor ? "active" : ""}
+                >
+                  Single Image
+                </a>
+              </li>
+              <li>
+                <a 
+                  onClick={() => {
+                    setShowBatchProcessor(true);
+                    setShowAnimationProcessor(false);
+                  }}
+                  className={showBatchProcessor ? "active" : ""}
+                >
+                  Batch Processing
+                </a>
+              </li>
+              <li>
+                <a 
+                  onClick={() => {
+                    setShowBatchProcessor(false);
+                    setShowAnimationProcessor(true);
+                  }}
+                  className={showAnimationProcessor ? "active" : ""}
+                >
+                  Animation (GIF)
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
       
       {showBatchProcessor ? (
         <BatchProcessor />
+      ) : showAnimationProcessor ? (
+        <AnimationProcessor />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left column: Image uploader and settings */}
@@ -447,7 +535,7 @@ const Editor: React.FC = () => {
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className={`w-full p-2 border rounded-lg ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700"
                   placeholder="Enter a title for your image"
                 />
               </div>
@@ -457,28 +545,28 @@ const Editor: React.FC = () => {
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className={`w-full p-2 border rounded-lg ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
-                  placeholder="Add a description"
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700"
+                  placeholder="Add a description..."
                   rows={3}
                 />
               </div>
             </div>
             
             <div className="flex justify-end mt-6 gap-2">
-              <button
+              <Button
                 onClick={() => setSaveModalOpen(false)}
-                className={`py-2 px-4 border rounded-lg ${darkMode ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-100'}`}
+                variant="secondary"
                 disabled={isSaving}
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              
+              <Button
                 onClick={handleSaveImage}
-                className="py-2 px-4 bg-primary-500 hover:bg-primary-600 text-white rounded-lg"
-                disabled={isSaving || !title}
+                isLoading={isSaving}
               >
-                {isSaving ? 'Saving...' : 'Save'}
-              </button>
+                Save Image
+              </Button>
             </div>
           </div>
         </div>
@@ -490,47 +578,116 @@ const Editor: React.FC = () => {
           <div className={`w-full max-w-md rounded-lg shadow-xl p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
             <h2 className="text-xl font-bold mb-4">Save as Preset</h2>
             
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Save your current settings as a preset to quickly apply them to future images.
+            </p>
+            
             <div>
               <label className="block text-sm font-medium mb-1">Preset Name</label>
               <input
                 type="text"
                 value={presetName}
                 onChange={(e) => setPresetName(e.target.value)}
-                className={`w-full p-2 border rounded-lg ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700"
                 placeholder="Enter a name for your preset"
               />
             </div>
             
             <div className="flex justify-end mt-6 gap-2">
-              <button
+              <Button
                 onClick={() => setSaveAsPresetModalOpen(false)}
-                className={`py-2 px-4 border rounded-lg ${darkMode ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-100'}`}
+                variant="secondary"
                 disabled={isSaving}
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              
+              <Button
                 onClick={handleSavePreset}
-                className="py-2 px-4 bg-primary-500 hover:bg-primary-600 text-white rounded-lg"
-                disabled={isSaving || !presetName}
+                isLoading={isSaving}
               >
-                {isSaving ? 'Saving...' : 'Save Preset'}
-              </button>
+                Save Preset
+              </Button>
             </div>
           </div>
         </div>
       )}
       
-      {/* Image Manipulation */}
-      {showImageManipulation && (
-        <ImageManipulation onClose={() => setShowImageManipulation(false)} />
+      {/* Share Modal */}
+      {shareModalOpen && (
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${darkMode ? 'bg-gray-900/80' : 'bg-gray-100/80'}`}>
+          <div className={`w-full max-w-md rounded-lg shadow-xl p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <h2 className="text-xl font-bold mb-4">Share Your Creation</h2>
+            
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">
+                Share this link to let others apply these exact settings to their own images. The link includes a preview of your current result.
+              </p>
+              
+              <div className="flex">
+                <input
+                  type="text"
+                  value={shareLink}
+                  readOnly
+                  className="flex-1 p-2 border border-gray-300 rounded-l-md text-sm"
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(shareLink);
+                    toast.success('Link copied to clipboard!');
+                  }}
+                  className="bg-primary-500 text-white px-3 py-2 rounded-r-md hover:bg-primary-600"
+                >
+                  Copy
+                </button>
+              </div>
+              
+              <div className="flex justify-between mt-2">
+                <button
+                  onClick={() => {
+                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent('Check out this image effect I created!')}&url=${encodeURIComponent(shareLink)}`, '_blank');
+                  }}
+                  className="text-blue-400 hover:text-blue-500"
+                >
+                  Share on Twitter
+                </button>
+                
+                <button
+                  onClick={() => {
+                    navigate(`/share?${shareLink.split('?')[1]}`);
+                  }}
+                  className="text-primary-600 hover:text-primary-700"
+                >
+                  View Share Page
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex justify-end mt-6 gap-2">
+              <Button
+                onClick={() => setShareModalOpen(false)}
+                variant="secondary"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
       
       {/* Keyboard Shortcuts Modal */}
       {showKeyboardShortcuts && (
         <KeyboardShortcutsModal 
           shortcuts={shortcuts} 
-          onClose={toggleShortcutsModal} 
+          onClose={() => setShowKeyboardShortcuts(false)} 
+        />
+      )}
+      
+      {/* Image Manipulation Modal */}
+      {showImageManipulation && originalImage && (
+        <ImageManipulation
+          image={originalImage}
+          onClose={() => setShowImageManipulation(false)}
         />
       )}
     </div>

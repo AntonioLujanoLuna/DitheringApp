@@ -2,12 +2,17 @@
 import React, { useState } from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
 import Button from '../ui/Button';
+import { processBatchProgressively } from '../../lib/webgl/progressiveProcessing';
+import { isWebGLSupported } from '../../lib/webgl/webglDithering';
 
 const BatchProcessor: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [processedImages, setProcessedImages] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [currentImageProgress, setCurrentImageProgress] = useState(0);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [usingWebGL, setUsingWebGL] = useState(false);
   
   const {
     algorithm,
@@ -16,13 +21,19 @@ const BatchProcessor: React.FC = () => {
     colorMode,
     spacing,
     angle,
-    customColors
+    customColors,
+    patternType,
+    patternSize,
   } = useEditorStore();
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setSelectedFiles(Array.from(e.target.files));
       setProcessedImages([]);
+      
+      // Check if WebGL is supported
+      setUsingWebGL(isWebGLSupported() && 
+        (algorithm === 'ordered' || algorithm === 'halftone' || algorithm === 'pattern'));
     }
   };
   
@@ -31,61 +42,139 @@ const BatchProcessor: React.FC = () => {
     
     setIsProcessing(true);
     setProgress(0);
+    setCurrentImageProgress(0);
+    setCurrentImageIndex(0);
     setProcessedImages([]);
     
     try {
-      const results = [];
+      // Load all images first
+      const images: HTMLImageElement[] = [];
       
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
-        
+      for (const file of selectedFiles) {
         // Read file as data URL
         const dataUrl = await readFileAsDataURL(file);
         
         // Create image element
         const img = await loadImage(dataUrl);
-        
-        // Process the image
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        
-        const ctx = canvas.getContext('2d');
-        if (!ctx) continue;
-        
-        ctx.drawImage(img, 0, 0);
-        
-        // Get the image data
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        
-        // Process image using the editor's settings
-        const { processImage } = await import('../../lib/algorithms');
-        const processedData = processImage(
-          img,
-          algorithm,
-          dotSize,
-          contrast,
-          colorMode,
-          spacing,
-          angle,
-          customColors
-        );
-        
-        // Put the processed data back on the canvas
-        ctx.putImageData(processedData, 0, 0);
-        
-        // Get the data URL
-        const processedDataUrl = canvas.toDataURL('image/png');
-        results.push(processedDataUrl);
-        
-        // Update progress
-        setProgress(Math.round(((i + 1) / selectedFiles.length) * 100));
+        images.push(img);
       }
       
-      setProcessedImages(results);
+      // Use WebGL acceleration and progressive processing if supported
+      if (usingWebGL) {
+        processBatchProgressively(
+          images,
+          algorithm,
+          {
+            dotSize,
+            contrast,
+            colorMode,
+            spacing,
+            angle,
+            patternType,
+            patternSize,
+            onImageProgress: (imageIndex, imageProgress) => {
+              setCurrentImageIndex(imageIndex);
+              setCurrentImageProgress(imageProgress);
+            },
+            onBatchProgress: (batchProgress, processedImageData) => {
+              setProgress(batchProgress);
+              
+              // Convert processed images to data URLs
+              const dataUrls = processedImageData.map(imageData => {
+                const canvas = document.createElement('canvas');
+                canvas.width = imageData.width;
+                canvas.height = imageData.height;
+                
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return '';
+                
+                ctx.putImageData(imageData, 0, 0);
+                return canvas.toDataURL('image/png');
+              });
+              
+              setProcessedImages(dataUrls);
+            },
+            onComplete: (results) => {
+              // Convert all processed images to data URLs
+              const dataUrls = results.map(imageData => {
+                const canvas = document.createElement('canvas');
+                canvas.width = imageData.width;
+                canvas.height = imageData.height;
+                
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return '';
+                
+                ctx.putImageData(imageData, 0, 0);
+                return canvas.toDataURL('image/png');
+              });
+              
+              setProcessedImages(dataUrls);
+              setIsProcessing(false);
+            }
+          }
+        );
+      } else {
+        // Fall back to classic processing method
+        const results = [];
+        
+        for (let i = 0; i < images.length; i++) {
+          const img = images[i];
+          
+          // Process the image
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          
+          const ctx = canvas.getContext('2d');
+          if (!ctx) continue;
+          
+          ctx.drawImage(img, 0, 0);
+          
+          // Get the image data
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          
+          // Process image using the editor's settings
+          const { processImage } = await import('../../lib/algorithms');
+          const processedData = processImage(
+            img,
+            algorithm,
+            dotSize,
+            contrast,
+            colorMode,
+            spacing,
+            angle,
+            customColors,
+            0, // brightness
+            1.0, // gamma
+            0, // hue
+            0, // saturation
+            0, // lightness
+            0, // sharpness
+            0, // blur
+            patternType,
+            patternSize
+          );
+          
+          // Put the processed data back on the canvas
+          ctx.putImageData(processedData, 0, 0);
+          
+          // Get the data URL
+          const processedDataUrl = canvas.toDataURL('image/png');
+          results.push(processedDataUrl);
+          
+          // Update progress
+          setCurrentImageIndex(i);
+          setCurrentImageProgress(100);
+          setProgress(Math.round(((i + 1) / images.length) * 100));
+          
+          // Update processed images as we go
+          setProcessedImages([...results]);
+        }
+        
+        setIsProcessing(false);
+      }
     } catch (error) {
       console.error('Error processing images:', error);
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -124,6 +213,7 @@ const BatchProcessor: React.FC = () => {
         
         <p className="text-gray-600 mb-4">
           Process multiple images at once with the current settings from the editor.
+          {usingWebGL && <span className="ml-1 text-primary-600">Using GPU acceleration!</span>}
         </p>
         
         <div className="space-y-4">
@@ -170,22 +260,41 @@ const BatchProcessor: React.FC = () => {
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-3">Processing...</h3>
           
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div 
-              className="bg-primary-600 h-2.5 rounded-full transition-all duration-300" 
-              style={{ width: `${progress}%` }}
-            ></div>
+          {/* Overall progress */}
+          <div className="mb-4">
+            <div className="flex justify-between text-sm text-gray-600 mb-1">
+              <span>Overall Progress</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div 
+                className="bg-primary-600 h-2.5 rounded-full transition-all duration-300" 
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
           </div>
           
-          <p className="text-center mt-2 text-sm text-gray-600">
-            {progress}% complete
-          </p>
+          {/* Current image progress */}
+          <div>
+            <div className="flex justify-between text-sm text-gray-600 mb-1">
+              <span>Image {currentImageIndex + 1} of {selectedFiles.length}</span>
+              <span>{currentImageProgress}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div 
+                className="bg-green-500 h-2.5 rounded-full transition-all duration-300" 
+                style={{ width: `${currentImageProgress}%` }}
+              ></div>
+            </div>
+          </div>
         </div>
       )}
       
       {processedImages.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Processed Images ({processedImages.length})</h3>
+          <h3 className="text-lg font-semibold">
+            Processed Images ({processedImages.length} of {selectedFiles.length})
+          </h3>
           
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {processedImages.map((src, index) => (

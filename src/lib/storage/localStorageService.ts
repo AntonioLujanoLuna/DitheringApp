@@ -28,14 +28,24 @@ export const saveImage = async (image: any) => {
   return imageWithId;
 };
 
-export const getImages = async () => {
+export const getImages = async (offset: number = 0, limit: number = 0) => {
   const images: any[] = [];
   await imageStore.iterate((value: any) => {
     images.push(value);
   });
-  return images.sort((a, b) => 
+  
+  // Sort by creation date (newest first)
+  const sortedImages = images.sort((a, b) => 
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
+  
+  // Return all if no pagination is requested
+  if (offset === 0 && limit === 0) {
+    return sortedImages;
+  }
+  
+  // Return paginated results
+  return sortedImages.slice(offset, offset + limit);
 };
 
 export const getImage = async (id: string) => {

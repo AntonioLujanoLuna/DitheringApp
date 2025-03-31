@@ -45,7 +45,7 @@ export function patternDithering(
 export type PatternType = 'dots' | 'lines' | 'crosses' | 'diamonds' | 'waves' | 'bricks' | 'custom';
 
 // Get the pattern matrix for the selected pattern type
-function getPatternMatrix(patternType: PatternType, size: number = 4): number[][] {
+export function getPatternMatrix(patternType: PatternType, size: number = 4): number[][] {
   switch (patternType) {
     case 'dots':
       return createDotPattern(size);
