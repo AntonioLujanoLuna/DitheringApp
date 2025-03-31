@@ -19,7 +19,7 @@ const Home: React.FC = () => {
             <Link to="/editor" className="bg-white text-primary-700 hover:bg-gray-100 px-8 py-3 rounded-md font-medium text-lg">
               Start Creating
             </Link>
-            <Link to="/gallery/community" className="bg-transparent border border-white hover:bg-white hover:text-primary-700 px-8 py-3 rounded-md font-medium text-lg">
+            <Link to="/gallery/my" className="bg-transparent border border-white hover:bg-white hover:text-primary-700 px-8 py-3 rounded-md font-medium text-lg">
               View Gallery
             </Link>
           </div>
@@ -76,32 +76,9 @@ const Home: React.FC = () => {
               </div>
               <h3 className="text-xl font-semibold mb-2">Save & Share</h3>
               <p className="text-gray-600">
-                Download your creations, save to your collection, or share with the community.
+                Download your creations, save to your collection, or share with others via link.
               </p>
             </div>
-          </div>
-        </div>
-      </section>
-      
-      {/* Community Showcase Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-4">Community Showcase</h2>
-          <p className="text-xl text-center text-gray-600 max-w-3xl mx-auto mb-12">
-            Check out what others are creating with our halftone dithering tools
-          </p>
-          
-          {/* This would be populated with actual community images */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-gray-200 h-64 rounded-lg animate-pulse"></div>
-            <div className="bg-gray-200 h-64 rounded-lg animate-pulse"></div>
-            <div className="bg-gray-200 h-64 rounded-lg animate-pulse"></div>
-          </div>
-          
-          <div className="text-center mt-10">
-            <Link to="/gallery/community" className="btn btn-primary text-lg px-8">
-              View Full Gallery
-            </Link>
           </div>
         </div>
       </section>
@@ -112,19 +89,13 @@ const Home: React.FC = () => {
           <h2 className="text-3xl font-bold mb-6">Ready to Create Your Own?</h2>
           <p className="text-xl max-w-2xl mx-auto mb-8">
             Start transforming your images with our powerful dithering tools today.
-            {!user && " Sign up for free to save and share your creations."}
+            All processing happens in your browser - no account needed!
           </p>
           
           <div className="flex justify-center space-x-4">
             <Link to="/editor" className="bg-white text-primary-700 hover:bg-gray-100 px-8 py-3 rounded-md font-medium text-lg">
               Open Editor
             </Link>
-            
-            {!user && (
-              <Link to="/signup" className="bg-transparent border border-white hover:bg-white hover:text-primary-700 px-8 py-3 rounded-md font-medium text-lg">
-                Create Account
-              </Link>
-            )}
           </div>
         </div>
       </section>

@@ -7,6 +7,7 @@ import MobileSettingsPanel from '../components/ui/MobileSettingsPanel';
 import BatchProcessor from '../components/batch/BatchProcessor';
 import { useEditorStore } from '../store/useEditorStore';
 import { usePresetStore } from '../store/usePresetStore';
+import { useGalleryStore } from '../store/useGalleryStore';
 import Button from '../components/ui/Button';
 
 const Editor: React.FC = () => {
@@ -14,9 +15,7 @@ const Editor: React.FC = () => {
   const [saveAsPresetModalOpen, setSaveAsPresetModalOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [isPublic, setIsPublic] = useState(true);
   const [presetName, setPresetName] = useState('');
-  const [presetIsPublic, setPresetIsPublic] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showBatchProcessor, setShowBatchProcessor] = useState(false);
@@ -34,6 +33,7 @@ const Editor: React.FC = () => {
   } = useEditorStore();
   
   const { createPreset } = usePresetStore();
+  const { saveImageToCollection } = useGalleryStore();
 
   // Detect mobile viewport
   useEffect(() => {
@@ -127,10 +127,6 @@ const Editor: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const saveImageToCollection = async (imageData) => {
-    return await useGalleryStore.getState().saveImageToCollection(imageData);
   };
 
   const openSaveModal = () => {
@@ -297,19 +293,6 @@ const Editor: React.FC = () => {
                   placeholder="Add a description..."
                 />
               </div>
-              
-              <div className="flex items-center">
-                <input
-                  id="isPublic"
-                  type="checkbox"
-                  checked={isPublic}
-                  onChange={(e) => setIsPublic(e.target.checked)}
-                  className="h-4 w-4 text-primary-600 border-gray-300 rounded"
-                />
-                <label htmlFor="isPublic" className="ml-2 block text-sm text-gray-700">
-                  Share to Community Gallery
-                </label>
-              </div>
             </div>
             
             <div className="flex justify-end space-x-3 mt-6">
@@ -351,19 +334,6 @@ const Editor: React.FC = () => {
                   placeholder="Enter a name for your preset"
                   required
                 />
-              </div>
-              
-              <div className="flex items-center">
-                <input
-                  id="presetIsPublic"
-                  type="checkbox"
-                  checked={presetIsPublic}
-                  onChange={(e) => setPresetIsPublic(e.target.checked)}
-                  className="h-4 w-4 text-primary-600 border-gray-300 rounded"
-                />
-                <label htmlFor="presetIsPublic" className="ml-2 block text-sm text-gray-700">
-                  Share to Community Presets
-                </label>
               </div>
             </div>
             
