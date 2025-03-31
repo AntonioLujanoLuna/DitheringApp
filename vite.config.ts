@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: './', // This is important for GitHub Pages
+  base: '/DitheringApp/', // Updated to match the repository name exactly
   build: {
     outDir: 'docs', // GitHub Pages can serve from /docs folder
   }
