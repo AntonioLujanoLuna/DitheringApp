@@ -132,6 +132,10 @@ const Editor: React.FC = () => {
     }
   };
 
+  const saveImageToCollection = async (imageData) => {
+    return await useGalleryStore.getState().saveImageToCollection(imageData);
+  };
+
   const openSaveModal = () => {
     if (!originalImage) {
       toast.warning('Please upload an image first.');
