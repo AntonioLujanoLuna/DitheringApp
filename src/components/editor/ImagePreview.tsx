@@ -5,6 +5,8 @@ import { useRegionStore, Region } from '../../store/useRegionStore';
 import { processImage } from '../../lib/algorithms';
 import { selectiveDithering, createCircularMask, createRectangularMask, createPolygonMask, MaskRegion } from '../../lib/algorithms/selectiveDithering';
 import RegionSelector from '../regions/RegionSelector';
+import ImageComparison from './ImageComparison';
+import { useThemeStore } from '../../store/useThemeStore';
 
 const ImagePreview: React.FC = () => {
   const {
@@ -20,8 +22,10 @@ const ImagePreview: React.FC = () => {
     setIsProcessing
   } = useEditorStore();
   
+  const { darkMode } = useThemeStore();
   const { regions } = useRegionStore();
   const [showRegionSelector, setShowRegionSelector] = useState<boolean>(false);
+  const [showComparison, setShowComparison] = useState<boolean>(false);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -185,6 +189,11 @@ const ImagePreview: React.FC = () => {
     setShowRegionSelector(!showRegionSelector);
   };
   
+  // Toggle comparison view
+  const toggleComparisonView = () => {
+    setShowComparison(!showComparison);
+  };
+  
   // Download the processed image
   const handleDownload = () => {
     if (!canvasRef.current) return;
@@ -197,8 +206,8 @@ const ImagePreview: React.FC = () => {
   
   if (!originalImage) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 border border-gray-200 rounded-lg bg-gray-50 h-96">
-        <p className="text-gray-500">Upload an image to see the preview</p>
+      <div className={`flex flex-col items-center justify-center p-8 border border-gray-200 dark:border-gray-700 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-50'} h-96`}>
+        <p className={`${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Upload an image to see the preview</p>
       </div>
     );
   }
@@ -209,6 +218,17 @@ const ImagePreview: React.FC = () => {
         <h2 className="text-xl font-bold">Preview</h2>
         
         <div className="flex space-x-2">
+          <button
+            onClick={toggleComparisonView}
+            className={`btn ${showComparison ? 'btn-primary' : 'btn-secondary'} flex items-center gap-2`}
+            disabled={isProcessing}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12M8 12h12M8 17h12M4 7h.01M4 12h.01M4 17h.01" />
+            </svg>
+            {showComparison ? 'Standard View' : 'Comparison View'}
+          </button>
+          
           {algorithm === 'selective' && (
             <button
               onClick={toggleRegionSelector}
@@ -235,28 +255,36 @@ const ImagePreview: React.FC = () => {
         </div>
       </div>
       
-      <div className="relative border border-gray-200 rounded-lg overflow-hidden">
+      <div className={`relative border ${darkMode ? 'border-gray-700' : 'border-gray-200'} rounded-lg overflow-hidden`}>
         {isProcessing && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10">
+          <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-gray-800/70 z-10">
             <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary-600"></div>
           </div>
         )}
         
         <div className="w-full overflow-auto">
-          <canvas
-            ref={canvasRef}
-            className="max-w-full"
-          />
+          {showComparison ? (
+            <div className="h-[500px]">
+              <ImageComparison 
+                originalSrc={originalImage.src}
+                processedCanvas={canvasRef.current}
+              />
+            </div>
+          ) : (
+            <canvas
+              ref={canvasRef}
+              className="max-w-full"
+            />
+          )}
         </div>
+        
+        {showRegionSelector && (
+          <RegionSelector 
+            originalImage={originalImage}
+            canvasRef={canvasRef}
+          />
+        )}
       </div>
-      
-      {/* Region selector */}
-      {algorithm === 'selective' && showRegionSelector && originalImage && (
-        <RegionSelector 
-          imageWidth={originalImage.width} 
-          imageHeight={originalImage.height}
-        />
-      )}
     </div>
   );
 };

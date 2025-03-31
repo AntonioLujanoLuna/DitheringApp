@@ -7,6 +7,7 @@ export type DitheringAlgorithm = 'ordered' | 'floydSteinberg' | 'atkinson' | 'ha
   'voidAndCluster' | 'blueNoise' | 'riemersma' | 'directBinarySearch' |
   'pattern' | 'multiTone' | 'selective';
 export type ColorMode = 'bw' | 'cmyk' | 'rgb' | 'custom';
+export type ToneDistribution = 'linear' | 'logarithmic' | 'exponential';
 
 interface EditorState {
   // Original image
@@ -24,6 +25,8 @@ interface EditorState {
   patternSize: number;
   // Multi-tone parameters
   toneLevel: number;
+  toneLevels: number;
+  toneDistribution: ToneDistribution;
   multiToneAlgorithm: MultiToneAlgorithm;
   // Image processing parameters
   brightness: number;
@@ -33,6 +36,7 @@ interface EditorState {
   lightness: number;
   sharpness: number;
   blur: number;
+  invert: boolean;
   // UI state
   isProcessing: boolean;
   // Actions
@@ -47,6 +51,8 @@ interface EditorState {
   setPatternType: (type: PatternType) => void;
   setPatternSize: (size: number) => void;
   setToneLevel: (level: number) => void;
+  setToneLevels: (levels: number) => void;
+  setToneDistribution: (distribution: ToneDistribution) => void;
   setMultiToneAlgorithm: (algorithm: MultiToneAlgorithm) => void;
   setBrightness: (brightness: number) => void;
   setGammaCorrection: (gamma: number) => void;
@@ -55,6 +61,7 @@ interface EditorState {
   setLightness: (lightness: number) => void;
   setSharpness: (sharpness: number) => void;
   setBlur: (blur: number) => void;
+  setInvert: (invert: boolean) => void;
   setIsProcessing: (isProcessing: boolean) => void;
   resetSettings: () => void;
   loadSettings: (settings: Partial<EditorSettings>) => void;
@@ -71,6 +78,8 @@ export interface EditorSettings {
   patternType: PatternType;
   patternSize: number;
   toneLevel: number;
+  toneLevels: number;
+  toneDistribution: ToneDistribution;
   multiToneAlgorithm: MultiToneAlgorithm;
   brightness: number;
   gammaCorrection: number;
@@ -79,6 +88,7 @@ export interface EditorSettings {
   lightness: number;
   sharpness: number;
   blur: number;
+  invert: boolean;
 }
 
 const DEFAULT_SETTINGS: EditorSettings = {
@@ -92,6 +102,8 @@ const DEFAULT_SETTINGS: EditorSettings = {
   patternType: 'dots',
   patternSize: 4,
   toneLevel: 4,
+  toneLevels: 4,
+  toneDistribution: 'linear',
   multiToneAlgorithm: 'ordered',
   brightness: 0,
   gammaCorrection: 1.0,
@@ -100,6 +112,7 @@ const DEFAULT_SETTINGS: EditorSettings = {
   lightness: 0,
   sharpness: 0,
   blur: 0,
+  invert: false,
 };
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -120,6 +133,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   setPatternType: (patternType) => set({ patternType }),
   setPatternSize: (patternSize) => set({ patternSize }),
   setToneLevel: (toneLevel) => set({ toneLevel }),
+  setToneLevels: (toneLevels) => set({ toneLevels }),
+  setToneDistribution: (toneDistribution) => set({ toneDistribution }),
   setMultiToneAlgorithm: (multiToneAlgorithm) => set({ multiToneAlgorithm }),
   setBrightness: (brightness) => set({ brightness }),
   setGammaCorrection: (gammaCorrection) => set({ gammaCorrection }),
@@ -128,6 +143,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   setLightness: (lightness) => set({ lightness }),
   setSharpness: (sharpness) => set({ sharpness }),
   setBlur: (blur) => set({ blur }),
+  setInvert: (invert) => set({ invert }),
   setIsProcessing: (isProcessing) => set({ isProcessing }),
   resetSettings: () => set({ ...DEFAULT_SETTINGS }),
   loadSettings: (settings) => set({ ...settings }),

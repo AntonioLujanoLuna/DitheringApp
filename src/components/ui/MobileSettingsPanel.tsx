@@ -1,30 +1,182 @@
 // src/components/ui/MobileSettingsPanel.tsx
-import React from 'react';
-import SettingsPanel from '../editor/SettingsPanel';
+import React, { useState } from 'react';
+import { useEditorStore } from '../../store/useEditorStore';
+import { useThemeStore } from '../../store/useThemeStore';
 
 interface MobileSettingsPanelProps {
   onSavePreset: () => void;
+  onBeforeChange?: () => void;
 }
 
-const MobileSettingsPanel: React.FC<MobileSettingsPanelProps> = ({ onSavePreset }) => {
-  const [isOpen, setIsOpen] = React.useState(false);
+const MobileSettingsPanel: React.FC<MobileSettingsPanelProps> = ({ 
+  onSavePreset,
+  onBeforeChange 
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const { darkMode } = useThemeStore();
+  
+  const {
+    algorithm,
+    setAlgorithm,
+    dotSize,
+    setDotSize,
+    contrast,
+    setContrast,
+    colorMode,
+    setColorMode,
+    spacing,
+    setSpacing,
+    angle,
+    setAngle,
+    resetSettings
+  } = useEditorStore();
+  
+  const toggleExpanded = () => {
+    setExpanded(!expanded);
+  };
+  
+  const handleSettingChange = (action: () => void) => {
+    if (onBeforeChange) {
+      onBeforeChange();
+    }
+    action();
+  };
   
   return (
-    <div className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full btn btn-primary flex items-center justify-center"
+    <div className={`border ${darkMode ? 'border-gray-700' : 'border-gray-200'} rounded-lg overflow-hidden`}>
+      <div
+        className="p-4 flex justify-between items-center cursor-pointer"
+        onClick={toggleExpanded}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <h2 className="font-bold">Settings</h2>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className={`h-5 w-5 transition-transform ${expanded ? 'transform rotate-180' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
-        Settings {isOpen ? '↑' : '↓'}
-      </button>
+      </div>
       
-      {isOpen && (
-        <div className="mt-4">
-          <SettingsPanel onSavePreset={onSavePreset} />
+      {expanded && (
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
+          {/* Algorithm selection */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">
+              Dithering Algorithm
+            </label>
+            <select
+              value={algorithm}
+              onChange={(e) => handleSettingChange(() => setAlgorithm(e.target.value as any))}
+              className={`w-full p-2 border rounded-lg ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+            >
+              <option value="ordered">Ordered Dithering</option>
+              <option value="floydSteinberg">Floyd-Steinberg Dithering</option>
+              <option value="atkinson">Atkinson Dithering</option>
+              <option value="halftone">Halftone Dithering</option>
+              <option value="pattern">Pattern Dithering</option>
+              <option value="multiTone">Multi-tone Dithering</option>
+            </select>
+          </div>
+          
+          {/* Color mode selection */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">
+              Color Mode
+            </label>
+            <select
+              value={colorMode}
+              onChange={(e) => handleSettingChange(() => setColorMode(e.target.value as any))}
+              className={`w-full p-2 border rounded-lg ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+            >
+              <option value="bw">Black & White</option>
+              <option value="cmyk">CMYK</option>
+              <option value="rgb">RGB</option>
+              <option value="custom">Custom Colors</option>
+            </select>
+          </div>
+          
+          {/* Basic sliders */}
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <label className="block text-sm font-medium">
+                Dot Size: {dotSize}px
+              </label>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                value={dotSize}
+                onChange={(e) => handleSettingChange(() => setDotSize(parseInt(e.target.value)))}
+                className="w-full"
+              />
+            </div>
+            
+            <div className="space-y-1">
+              <label className="block text-sm font-medium">
+                Contrast: {contrast}%
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={contrast}
+                onChange={(e) => handleSettingChange(() => setContrast(parseInt(e.target.value)))}
+                className="w-full"
+              />
+            </div>
+            
+            {algorithm === 'halftone' && (
+              <>
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium">
+                    Spacing: {spacing}px
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="20"
+                    value={spacing}
+                    onChange={(e) => handleSettingChange(() => setSpacing(parseInt(e.target.value)))}
+                    className="w-full"
+                  />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium">
+                    Angle: {angle}°
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="90"
+                    value={angle}
+                    onChange={(e) => handleSettingChange(() => setAngle(parseInt(e.target.value)))}
+                    className="w-full"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          
+          {/* Action buttons */}
+          <div className="flex justify-between pt-2">
+            <button
+              onClick={() => handleSettingChange(resetSettings)}
+              className={`py-2 px-3 rounded-lg ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}
+            >
+              Reset Defaults
+            </button>
+            
+            <button
+              onClick={onSavePreset}
+              className="py-2 px-3 bg-primary-500 text-white rounded-lg"
+            >
+              Save as Preset
+            </button>
+          </div>
         </div>
       )}
     </div>

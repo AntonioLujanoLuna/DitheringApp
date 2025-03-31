@@ -1,20 +1,22 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, RefObject } from 'react';
 import { useRegionStore, Region, RegionType } from '../../store/useRegionStore';
 import { DitheringAlgorithm } from '../../store/useEditorStore';
 import RegionList from './RegionList';
 import RegionEditor from './RegionEditor';
 
 interface RegionSelectorProps {
-  imageWidth: number;
-  imageHeight: number;
+  originalImage: HTMLImageElement;
+  canvasRef: RefObject<HTMLCanvasElement>;
 }
 
-const RegionSelector: React.FC<RegionSelectorProps> = ({ imageWidth, imageHeight }) => {
+const RegionSelector: React.FC<RegionSelectorProps> = ({ originalImage, canvasRef }) => {
+  const imageWidth = originalImage.width;
+  const imageHeight = originalImage.height;
   const { regions, addRegion, activeRegionId, selectRegion } = useRegionStore();
   const [activeMode, setActiveMode] = useState<'select' | 'create'>('select');
   const [creatingType, setCreatingType] = useState<RegionType>('circle');
   const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([]);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const regionCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Redraw regions when they change
   useEffect(() => {
@@ -22,7 +24,7 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({ imageWidth, imageHeight
   }, [regions, activeRegionId, imageWidth, imageHeight]);
 
   const drawRegions = () => {
-    const canvas = canvasRef.current;
+    const canvas = regionCanvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
@@ -151,7 +153,7 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({ imageWidth, imageHeight
   };
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
+    const canvas = regionCanvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -340,7 +342,7 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({ imageWidth, imageHeight
         <div className="lg:col-span-2">
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <canvas
-              ref={canvasRef}
+              ref={regionCanvasRef}
               className="w-full"
               onClick={handleCanvasClick}
               style={{ cursor: activeMode === 'select' ? 'pointer' : 'crosshair' }}
