@@ -9,7 +9,7 @@ import {
   selectiveDithering,
   MaskRegion
 } from '../../lib/algorithms';
-import { DitheringAlgorithm, ColorMode } from '../../store/useEditorStore';
+import { DitheringAlgorithm, ColorMode } from '../../store/useEditingSessionStore';
 
 // Define the message types for TypeScript
 interface ProcessImageMessage {

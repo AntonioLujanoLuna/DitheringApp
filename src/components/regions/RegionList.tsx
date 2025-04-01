@@ -1,7 +1,12 @@
 import React from 'react';
-import { useRegionStore, Region } from '../../store/useRegionStore';
+import { useEditingSessionStore, Region } from '../../store/useEditingSessionStore';
+import { FiEdit, FiTrash2, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 
-const RegionList: React.FC = () => {
+interface RegionListProps {
+  onSelectRegion: (region: Region) => void;
+}
+
+const RegionList: React.FC<RegionListProps> = ({ onSelectRegion }) => {
   const { 
     regions, 
     activeRegionId, 
@@ -9,7 +14,7 @@ const RegionList: React.FC = () => {
     deleteRegion, 
     moveRegionUp, 
     moveRegionDown 
-  } = useRegionStore();
+  } = useEditingSessionStore();
 
   const handleRegionClick = (region: Region) => {
     selectRegion(region.id);

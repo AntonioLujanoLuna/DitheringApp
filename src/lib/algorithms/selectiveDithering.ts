@@ -1,5 +1,5 @@
 // Selective dithering with masking to apply different dithering effects to different parts of an image
-import { DitheringAlgorithm } from '../../store/useEditorStore';
+import { DitheringAlgorithm } from '../../store/useEditingSessionStore';
 import { 
   orderedDithering, 
   floydSteinbergDithering, 

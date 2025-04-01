@@ -1,5 +1,5 @@
 // src/lib/utils/shareUtils.ts
-import { EditorSettings } from '../../store/useEditorStore';
+import { EditorSettings } from '../../store/useEditingSessionStore';
 
 // Create a shareable URL with settings encoded
 export const createShareableLink = (settings: Partial<EditorSettings>): string => {

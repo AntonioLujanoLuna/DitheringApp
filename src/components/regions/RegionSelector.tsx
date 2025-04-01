@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, RefObject } from 'react';
-import { useRegionStore, Region, RegionType } from '../../store/useRegionStore';
-import { DitheringAlgorithm } from '../../store/useEditorStore';
+import { useEditingSessionStore, Region, RegionType, DitheringAlgorithm } from '../../store/useEditingSessionStore';
+import { FiPlus, FiCircle, FiSquare, FiEdit3 } from 'react-icons/fi';
+import Button from '../ui/Button';
 import RegionList from './RegionList';
 import RegionEditor from './RegionEditor';
 
@@ -12,11 +13,12 @@ interface RegionSelectorProps {
 const RegionSelector: React.FC<RegionSelectorProps> = ({ originalImage, canvasRef }) => {
   const imageWidth = originalImage.width;
   const imageHeight = originalImage.height;
-  const { regions, addRegion, activeRegionId, selectRegion } = useRegionStore();
+  const { regions, addRegion, activeRegionId, selectRegion } = useEditingSessionStore();
   const [activeMode, setActiveMode] = useState<'select' | 'create'>('select');
   const [creatingType, setCreatingType] = useState<RegionType>('circle');
   const [drawingPoints, setDrawingPoints] = useState<[number, number][]>([]);
   const regionCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [activeTool, setActiveTool] = useState<RegionType | null>(null);
 
   // Redraw regions when they change
   useEffect(() => {
@@ -251,38 +253,35 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({ originalImage, canvasRe
     
     addRegion({
       type: 'circle',
-      name: `Circle ${regions.length + 1}`,
+      name: `Circle Region ${regions.length + 1}`,
       algorithm: 'ordered',
+      feather: 0,
       centerX,
       centerY,
       radius,
-      feather: 0,
-      isSelected: true,
     });
   };
 
   const createRectangleRegion = (x1: number, y1: number, x2: number, y2: number) => {
     addRegion({
       type: 'rectangle',
-      name: `Rectangle ${regions.length + 1}`,
+      name: `Rectangle Region ${regions.length + 1}`,
       algorithm: 'ordered',
+      feather: 0,
       x1,
       y1,
       x2,
       y2,
-      feather: 0,
-      isSelected: true,
     });
   };
 
   const createPolygonRegion = (vertices: [number, number][]) => {
     addRegion({
       type: 'polygon',
-      name: `Polygon ${regions.length + 1}`,
+      name: `Polygon Region ${regions.length + 1}`,
       algorithm: 'ordered',
-      vertices,
       feather: 0,
-      isSelected: true,
+      vertices,
     });
   };
 
@@ -295,6 +294,10 @@ const RegionSelector: React.FC<RegionSelectorProps> = ({ originalImage, canvasRe
   const cancelDrawing = () => {
     setActiveMode('select');
     setDrawingPoints([]);
+  };
+
+  const startRegionCreation = (type: RegionType) => {
+    setActiveTool(type);
   };
 
   return (

@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useGalleryStore } from '../store/useGalleryStore';
-import { useEditorStore } from '../store/useEditorStore';
+import { useEditingSessionStore } from '../store/useEditingSessionStore';
 import GalleryGrid from './GalleryGrid';
 import Button from '../components/ui/Button';
 
@@ -19,7 +19,7 @@ const MyGallery: React.FC = () => {
     error
   } = useGalleryStore();
   
-  const { loadSettings } = useEditorStore();
+  const { loadSettings } = useEditingSessionStore();
   
   useEffect(() => {
     fetchMyImages();

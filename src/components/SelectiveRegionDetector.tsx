@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { DitheringAlgorithm } from '../store/useEditorStore';
+import { DitheringAlgorithm } from '../store/useEditingSessionStore';
+import { Region } from '../store/useEditingSessionStore';
 
 interface SelectiveRegionDetectorProps {
   imageUrl: string;

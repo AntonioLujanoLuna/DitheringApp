@@ -2,7 +2,7 @@
 // This allows for showing incremental updates during processing
 
 import { processImageWithWebGL, patternMatrixToImageData, isWebGLSupported } from './webglDithering';
-import { DitheringAlgorithm, ColorMode } from '../../store/useEditorStore';
+import { DitheringAlgorithm, ColorMode } from '../../store/useEditingSessionStore';
 import { getPatternMatrix } from '../algorithms/patternDithering';
 import type { PatternType } from '../algorithms/patternDithering';
 

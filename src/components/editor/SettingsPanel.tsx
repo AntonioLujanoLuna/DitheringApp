@@ -1,10 +1,6 @@
 // src/components/editor/SettingsPanel.tsx
-import React, { useState } from 'react';
-import { useEditorStore } from '../../store/useEditorStore';
-import { usePresetStore } from '../../store/usePresetStore';
-import { useRegionStore } from '../../store/useRegionStore';
-import { PatternType } from '../../lib/algorithms/patternDithering';
-import { MultiToneAlgorithm } from '../../lib/algorithms/multiTone';
+import React, { useState, useEffect } from 'react';
+import { useEditingSessionStore, EditorSettings } from '../../store/useEditingSessionStore';
 import AlgorithmSelector from './settings/AlgorithmSelector';
 import GeneralControls from './settings/GeneralControls';
 import ColorControls from './settings/ColorControls';
@@ -25,12 +21,12 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
 }) => {
   const {
     algorithm,
-    dotSize,
     contrast,
     colorMode,
     spacing,
     angle,
     customColors,
+    dotSize,
     patternType,
     patternSize,
     toneLevel,
@@ -42,8 +38,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     lightness,
     sharpness,
     blur,
+    invert,
+    regions,
+    myPresets,
+    selectedPreset,
+    fetchMyPresets,
+    selectPreset,
+    applySelectedPreset,
     setAlgorithm,
-    setDotSize,
     setContrast,
     setColorMode,
     setSpacing,
@@ -61,10 +63,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setSharpness,
     setBlur,
     resetSettings
-  } = useEditorStore();
+  } = useEditingSessionStore();
   
-  const { regions } = useRegionStore();
-  const { myPresets, selectedPreset, selectPreset, fetchMyPresets } = usePresetStore();
   const { darkMode } = useThemeStore();
   
   const [activeTab, setActiveTab] = useState<string>('algorithm');
@@ -81,7 +81,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   };
   
   // Load presets on component mount
-  React.useEffect(() => {
+  useEffect(() => {
     fetchMyPresets();
   }, [fetchMyPresets]);
   
@@ -97,7 +97,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     const preset = myPresets.find(p => p.id === presetId);
     if (preset) {
       selectPreset(preset);
-      useEditorStore.getState().loadSettings(preset.settings);
+      // Consider if applying should be automatic on select or require explicit action
+      // Example: Apply immediately
+      // if (preset) { 
+      //   applySelectedPreset(); 
+      // }
     }
   };
   
@@ -170,7 +174,18 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         )}
         
         {activeTab === 'presets' && (
-          <PresetSelector onSavePreset={onSavePreset} />
+          <PresetSelector 
+            presets={myPresets}
+            selectedPreset={selectedPreset}
+            onSelect={(preset) => {
+              selectPreset(preset);
+              // Consider if applying should be automatic on select or require explicit action
+              // Example: Apply immediately
+              // if (preset) { 
+              //   applySelectedPreset(); 
+              // }
+            }}
+          />
         )}
       </div>
     </div>

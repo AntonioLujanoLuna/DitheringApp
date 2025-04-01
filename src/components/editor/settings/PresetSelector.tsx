@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { usePresetStore } from '../../../store/usePresetStore';
-import { useEditorStore } from '../../../store/useEditorStore';
+import React, { useEffect, useState } from 'react';
+import { useEditingSessionStore, Preset } from '../../../store/useEditingSessionStore';
+import { FiSave, FiTrash2 } from 'react-icons/fi';
 import { useThemeStore } from '../../../store/useThemeStore';
 
 interface PresetSelectorProps {
@@ -8,8 +8,16 @@ interface PresetSelectorProps {
 }
 
 const PresetSelector: React.FC<PresetSelectorProps> = ({ onSavePreset }) => {
-  const { myPresets, selectedPreset, selectPreset, fetchMyPresets } = usePresetStore();
-  const { loadSettings } = useEditorStore();
+  const {
+    myPresets,
+    selectedPreset,
+    isPresetLoading,
+    presetError,
+    fetchMyPresets,
+    selectPreset,
+    deletePreset,
+    applySelectedPreset
+  } = useEditingSessionStore();
   const { darkMode } = useThemeStore();
   
   // Load presets on component mount
@@ -19,16 +27,15 @@ const PresetSelector: React.FC<PresetSelectorProps> = ({ onSavePreset }) => {
   
   const handlePresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const presetId = e.target.value;
-    if (presetId) {
-      selectPreset(presetId);
-      
-      // Find the selected preset
-      const preset = myPresets.find(p => p.id === presetId);
-      if (preset && preset.settings) {
-        // Apply the preset settings
-        loadSettings(preset.settings);
-      }
+    const preset = myPresets.find(p => p.id === presetId);
+    selectPreset(preset || null);
+    if (preset) {
+      applySelectedPreset();
     }
+  };
+  
+  const handleDeletePreset = async (id: string) => {
+    // Implementation of handleDeletePreset function
   };
   
   return (

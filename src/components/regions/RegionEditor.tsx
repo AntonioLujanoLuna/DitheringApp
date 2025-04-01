@@ -1,14 +1,16 @@
-import React from 'react';
-import { useRegionStore } from '../../store/useRegionStore';
-import { DitheringAlgorithm } from '../../store/useEditorStore';
+import React, { useState, useEffect } from 'react';
+import { useEditingSessionStore, DitheringAlgorithm } from '../../store/useEditingSessionStore';
+import AlgorithmSelector from '../editor/settings/AlgorithmSelector';
 
-const RegionEditor: React.FC = () => {
-  const { regions, activeRegionId, updateRegion } = useRegionStore();
+interface RegionEditorProps {
+  regionId: string;
+}
+
+const RegionEditor: React.FC<RegionEditorProps> = ({ regionId }) => {
+  const { regions, activeRegionId, updateRegion } = useEditingSessionStore();
+  const currentRegion = regions.find(r => r.id === regionId);
   
-  // Find the active region
-  const activeRegion = regions.find(region => region.id === activeRegionId);
-  
-  if (!activeRegion) {
+  if (!currentRegion) {
     return (
       <div className="mt-4 p-4 border border-gray-200 rounded bg-gray-50 text-center text-gray-500">
         Select a region to edit its properties
@@ -17,92 +19,92 @@ const RegionEditor: React.FC = () => {
   }
   
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateRegion(activeRegion.id, { name: e.target.value });
+    updateRegion(currentRegion.id, { name: e.target.value });
   };
   
   const handleAlgorithmChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    updateRegion(activeRegion.id, { 
+    updateRegion(currentRegion.id, { 
       algorithm: e.target.value as DitheringAlgorithm 
     });
   };
   
   const handleFeatherChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateRegion(activeRegion.id, { 
+    updateRegion(currentRegion.id, { 
       feather: parseFloat(e.target.value) 
     });
   };
   
   const handleDotSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateRegion(activeRegion.id, { 
+    updateRegion(currentRegion.id, { 
       dotSize: parseInt(e.target.value, 10) 
     });
   };
   
   const handleSpacingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateRegion(activeRegion.id, { 
+    updateRegion(currentRegion.id, { 
       spacing: parseInt(e.target.value, 10) 
     });
   };
   
   const handleAngleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateRegion(activeRegion.id, { 
+    updateRegion(currentRegion.id, { 
       angle: parseInt(e.target.value, 10) 
     });
   };
   
   const handleThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateRegion(activeRegion.id, { 
+    updateRegion(currentRegion.id, { 
       threshold: parseInt(e.target.value, 10) 
     });
   };
   
   // For circle-specific properties
   const handleCenterXChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (activeRegion.type !== 'circle') return;
-    updateRegion(activeRegion.id, { 
+    if (currentRegion.type !== 'circle') return;
+    updateRegion(currentRegion.id, { 
       centerX: parseFloat(e.target.value) 
     });
   };
   
   const handleCenterYChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (activeRegion.type !== 'circle') return;
-    updateRegion(activeRegion.id, { 
+    if (currentRegion.type !== 'circle') return;
+    updateRegion(currentRegion.id, { 
       centerY: parseFloat(e.target.value) 
     });
   };
   
   const handleRadiusChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (activeRegion.type !== 'circle') return;
-    updateRegion(activeRegion.id, { 
+    if (currentRegion.type !== 'circle') return;
+    updateRegion(currentRegion.id, { 
       radius: parseFloat(e.target.value) 
     });
   };
   
   // For rectangle-specific properties
   const handleX1Change = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (activeRegion.type !== 'rectangle') return;
-    updateRegion(activeRegion.id, { 
+    if (currentRegion.type !== 'rectangle') return;
+    updateRegion(currentRegion.id, { 
       x1: parseFloat(e.target.value) 
     });
   };
   
   const handleY1Change = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (activeRegion.type !== 'rectangle') return;
-    updateRegion(activeRegion.id, { 
+    if (currentRegion.type !== 'rectangle') return;
+    updateRegion(currentRegion.id, { 
       y1: parseFloat(e.target.value) 
     });
   };
   
   const handleX2Change = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (activeRegion.type !== 'rectangle') return;
-    updateRegion(activeRegion.id, { 
+    if (currentRegion.type !== 'rectangle') return;
+    updateRegion(currentRegion.id, { 
       x2: parseFloat(e.target.value) 
     });
   };
   
   const handleY2Change = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (activeRegion.type !== 'rectangle') return;
-    updateRegion(activeRegion.id, { 
+    if (currentRegion.type !== 'rectangle') return;
+    updateRegion(currentRegion.id, { 
       y2: parseFloat(e.target.value) 
     });
   };
@@ -117,7 +119,7 @@ const RegionEditor: React.FC = () => {
           <input
             type="text"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            value={activeRegion.name}
+            value={currentRegion.name}
             onChange={handleNameChange}
           />
         </label>
@@ -126,7 +128,7 @@ const RegionEditor: React.FC = () => {
           Dithering Algorithm
           <select
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            value={activeRegion.algorithm}
+            value={currentRegion.algorithm}
             onChange={handleAlgorithmChange}
           >
             <option value="ordered">Ordered</option>
@@ -154,18 +156,18 @@ const RegionEditor: React.FC = () => {
             max="0.5"
             step="0.01"
             className="mt-1 block w-full"
-            value={activeRegion.feather}
+            value={currentRegion.feather}
             onChange={handleFeatherChange}
           />
           <div className="text-xs text-gray-500 mt-1">
-            {(activeRegion.feather * 100).toFixed(0)}% feathering
+            {(currentRegion.feather * 100).toFixed(0)}% feathering
           </div>
         </label>
         
         {/* Algorithm-specific properties */}
-        {(activeRegion.algorithm === 'ordered' || 
-          activeRegion.algorithm === 'halftone' || 
-          activeRegion.algorithm === 'pattern') && (
+        {(currentRegion.algorithm === 'ordered' || 
+          currentRegion.algorithm === 'halftone' || 
+          currentRegion.algorithm === 'pattern') && (
           <label className="block text-sm font-medium text-gray-700">
             Dot Size
             <input
@@ -174,16 +176,16 @@ const RegionEditor: React.FC = () => {
               max="10"
               step="1"
               className="mt-1 block w-full"
-              value={activeRegion.dotSize || 4}
+              value={currentRegion.dotSize || 4}
               onChange={handleDotSizeChange}
             />
             <div className="text-xs text-gray-500 mt-1">
-              {activeRegion.dotSize || 4}
+              {currentRegion.dotSize || 4}
             </div>
           </label>
         )}
         
-        {activeRegion.algorithm === 'halftone' && (
+        {currentRegion.algorithm === 'halftone' && (
           <>
             <label className="block text-sm font-medium text-gray-700">
               Spacing
@@ -193,11 +195,11 @@ const RegionEditor: React.FC = () => {
                 max="20"
                 step="1"
                 className="mt-1 block w-full"
-                value={activeRegion.spacing || 5}
+                value={currentRegion.spacing || 5}
                 onChange={handleSpacingChange}
               />
               <div className="text-xs text-gray-500 mt-1">
-                {activeRegion.spacing || 5}
+                {currentRegion.spacing || 5}
               </div>
             </label>
             
@@ -209,27 +211,27 @@ const RegionEditor: React.FC = () => {
                 max="90"
                 step="5"
                 className="mt-1 block w-full"
-                value={activeRegion.angle || 45}
+                value={currentRegion.angle || 45}
                 onChange={handleAngleChange}
               />
               <div className="text-xs text-gray-500 mt-1">
-                {activeRegion.angle || 45}°
+                {currentRegion.angle || 45}°
               </div>
             </label>
           </>
         )}
         
-        {(activeRegion.algorithm === 'floydSteinberg' || 
-          activeRegion.algorithm === 'atkinson' || 
-          activeRegion.algorithm === 'jarvisJudiceNinke' || 
-          activeRegion.algorithm === 'stucki' || 
-          activeRegion.algorithm === 'burkes' || 
-          activeRegion.algorithm === 'sierraLite' || 
-          activeRegion.algorithm === 'random' || 
-          activeRegion.algorithm === 'voidAndCluster' || 
-          activeRegion.algorithm === 'blueNoise' || 
-          activeRegion.algorithm === 'riemersma' || 
-          activeRegion.algorithm === 'directBinarySearch') && (
+        {(currentRegion.algorithm === 'floydSteinberg' || 
+          currentRegion.algorithm === 'atkinson' || 
+          currentRegion.algorithm === 'jarvisJudiceNinke' || 
+          currentRegion.algorithm === 'stucki' || 
+          currentRegion.algorithm === 'burkes' || 
+          currentRegion.algorithm === 'sierraLite' || 
+          currentRegion.algorithm === 'random' || 
+          currentRegion.algorithm === 'voidAndCluster' || 
+          currentRegion.algorithm === 'blueNoise' || 
+          currentRegion.algorithm === 'riemersma' || 
+          currentRegion.algorithm === 'directBinarySearch') && (
           <label className="block text-sm font-medium text-gray-700">
             Threshold
             <input
@@ -238,17 +240,17 @@ const RegionEditor: React.FC = () => {
               max="255"
               step="1"
               className="mt-1 block w-full"
-              value={activeRegion.threshold || 128}
+              value={currentRegion.threshold || 128}
               onChange={handleThresholdChange}
             />
             <div className="text-xs text-gray-500 mt-1">
-              {activeRegion.threshold || 128}
+              {currentRegion.threshold || 128}
             </div>
           </label>
         )}
         
         {/* Region-specific properties */}
-        {activeRegion.type === 'circle' && (
+        {currentRegion.type === 'circle' && (
           <div className="space-y-2 border-t pt-2 mt-2">
             <h4 className="text-sm font-medium">Circle Properties</h4>
             
@@ -261,7 +263,7 @@ const RegionEditor: React.FC = () => {
                   max="1"
                   step="0.01"
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  value={activeRegion.centerX}
+                  value={currentRegion.centerX}
                   onChange={handleCenterXChange}
                 />
               </label>
@@ -274,7 +276,7 @@ const RegionEditor: React.FC = () => {
                   max="1"
                   step="0.01"
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  value={activeRegion.centerY}
+                  value={currentRegion.centerY}
                   onChange={handleCenterYChange}
                 />
               </label>
@@ -288,17 +290,17 @@ const RegionEditor: React.FC = () => {
                 max="0.5"
                 step="0.01"
                 className="mt-1 block w-full"
-                value={activeRegion.radius}
+                value={currentRegion.radius}
                 onChange={handleRadiusChange}
               />
               <div className="text-xs text-gray-500 mt-1">
-                {(activeRegion.radius! * 100).toFixed(0)}%
+                {(currentRegion.radius! * 100).toFixed(0)}%
               </div>
             </label>
           </div>
         )}
         
-        {activeRegion.type === 'rectangle' && (
+        {currentRegion.type === 'rectangle' && (
           <div className="space-y-2 border-t pt-2 mt-2">
             <h4 className="text-sm font-medium">Rectangle Properties</h4>
             
@@ -311,7 +313,7 @@ const RegionEditor: React.FC = () => {
                   max="1"
                   step="0.01"
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  value={activeRegion.x1}
+                  value={currentRegion.x1}
                   onChange={handleX1Change}
                 />
               </label>
@@ -324,7 +326,7 @@ const RegionEditor: React.FC = () => {
                   max="1"
                   step="0.01"
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  value={activeRegion.y1}
+                  value={currentRegion.y1}
                   onChange={handleY1Change}
                 />
               </label>
@@ -337,7 +339,7 @@ const RegionEditor: React.FC = () => {
                   max="1"
                   step="0.01"
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  value={activeRegion.x2}
+                  value={currentRegion.x2}
                   onChange={handleX2Change}
                 />
               </label>
@@ -350,7 +352,7 @@ const RegionEditor: React.FC = () => {
                   max="1"
                   step="0.01"
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  value={activeRegion.y2}
+                  value={currentRegion.y2}
                   onChange={handleY2Change}
                 />
               </label>
@@ -358,7 +360,7 @@ const RegionEditor: React.FC = () => {
           </div>
         )}
         
-        {activeRegion.type === 'polygon' && (
+        {currentRegion.type === 'polygon' && (
           <div className="space-y-2 border-t pt-2 mt-2">
             <h4 className="text-sm font-medium">Polygon Properties</h4>
             <p className="text-xs text-gray-500">

@@ -1,9 +1,10 @@
 // src/components/batch/BatchProcessor.tsx
 import React, { useState } from 'react';
-import { useEditorStore } from '../../store/useEditorStore';
+import { useEditingSessionStore } from '../../store/useEditingSessionStore';
 import Button from '../ui/Button';
-import { processBatchProgressively } from '../../lib/webgl/progressiveProcessing';
+import { processImageProgressively, ProgressiveOptions } from '../../lib/processing/progressive';
 import { isWebGLSupported } from '../../lib/webgl/webglDithering';
+import { toast } from 'react-toastify';
 
 const BatchProcessor: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -24,7 +25,7 @@ const BatchProcessor: React.FC = () => {
     customColors,
     patternType,
     patternSize,
-  } = useEditorStore();
+  } = useEditingSessionStore();
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -42,101 +43,40 @@ const BatchProcessor: React.FC = () => {
     
     setIsProcessing(true);
     setProgress(0);
-    setCurrentImageProgress(0);
     setCurrentImageIndex(0);
+    setCurrentImageProgress(0);
     setProcessedImages([]);
     
     try {
       // Load all images first
-      const images: HTMLImageElement[] = [];
+      const dataUrls = await Promise.all(selectedFiles.map(readFileAsDataURL));
+      const images = await Promise.all(dataUrls.map(loadImage));
       
-      for (const file of selectedFiles) {
-        // Read file as data URL
-        const dataUrl = await readFileAsDataURL(file);
-        
-        // Create image element
-        const img = await loadImage(dataUrl);
-        images.push(img);
-      }
+      const processedImageDatas: ImageData[] = [];
       
-      // Use WebGL acceleration and progressive processing if supported
-      if (usingWebGL) {
-        processBatchProgressively(
-          images,
-          algorithm,
-          {
-            dotSize,
-            contrast,
-            colorMode,
-            spacing,
-            angle,
-            patternType,
-            patternSize,
-            onImageProgress: (imageIndex, imageProgress) => {
-              setCurrentImageIndex(imageIndex);
-              setCurrentImageProgress(imageProgress);
-            },
-            onBatchProgress: (batchProgress, processedImageData) => {
-              setProgress(batchProgress);
-              
-              // Convert processed images to data URLs
-              const dataUrls = processedImageData.map(imageData => {
-                const canvas = document.createElement('canvas');
-                canvas.width = imageData.width;
-                canvas.height = imageData.height;
-                
-                const ctx = canvas.getContext('2d');
-                if (!ctx) return '';
-                
-                ctx.putImageData(imageData, 0, 0);
-                return canvas.toDataURL('image/png');
-              });
-              
-              setProcessedImages(dataUrls);
-            },
-            onComplete: (results) => {
-              // Convert all processed images to data URLs
-              const dataUrls = results.map(imageData => {
-                const canvas = document.createElement('canvas');
-                canvas.width = imageData.width;
-                canvas.height = imageData.height;
-                
-                const ctx = canvas.getContext('2d');
-                if (!ctx) return '';
-                
-                ctx.putImageData(imageData, 0, 0);
-                return canvas.toDataURL('image/png');
-              });
-              
-              setProcessedImages(dataUrls);
-              setIsProcessing(false);
-            }
-          }
-        );
-      } else {
-        // Fall back to classic processing method
-        const results = [];
-        
-        for (let i = 0; i < images.length; i++) {
-          const img = images[i];
-          
-          // Process the image
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          
-          const ctx = canvas.getContext('2d');
-          if (!ctx) continue;
-          
-          ctx.drawImage(img, 0, 0);
-          
-          // Get the image data
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          
-          // Process image using the editor's settings
-          const { processImage } = await import('../../lib/algorithms');
-          const processedData = processImage(
-            img,
+      // Process images sequentially using the unified processor
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        setCurrentImageIndex(i);
+        setCurrentImageProgress(0); // Reset progress for the new image
+
+        // Get ImageData for the current image
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = img.width;
+        tempCanvas.height = img.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        if (!tempCtx) {
+          console.error(`Could not get context for image ${i}`);
+          // Optionally push a placeholder or skip this image
+          continue;
+        }
+        tempCtx.drawImage(img, 0, 0);
+        const sourceImageData = tempCtx.getImageData(0, 0, img.width, img.height);
+
+        // Process using progressive processor (awaiting completion)
+        const processedData = await new Promise<ImageData>((resolve, reject) => {
+          const progressiveOpts: ProgressiveOptions = {
+            sourceImageData: sourceImageData,
             algorithm,
             dotSize,
             contrast,
@@ -144,37 +84,59 @@ const BatchProcessor: React.FC = () => {
             spacing,
             angle,
             customColors,
-            0, // brightness
-            1.0, // gamma
-            0, // hue
-            0, // saturation
-            0, // lightness
-            0, // sharpness
-            0, // blur
             patternType,
-            patternSize
-          );
-          
-          // Put the processed data back on the canvas
-          ctx.putImageData(processedData, 0, 0);
-          
-          // Get the data URL
-          const processedDataUrl = canvas.toDataURL('image/png');
-          results.push(processedDataUrl);
-          
-          // Update progress
-          setCurrentImageIndex(i);
-          setCurrentImageProgress(100);
-          setProgress(Math.round(((i + 1) / images.length) * 100));
-          
-          // Update processed images as we go
-          setProcessedImages([...results]);
-        }
+            patternSize,
+            // Pass other relevant settings from store
+            progressSteps: 5, // Allow some progress steps per image
+            onProgress: (imageProgress) => {
+              setCurrentImageProgress(imageProgress); // Update specific image progress
+            },
+            onComplete: (result) => {
+              resolve(result);
+            },
+            onError: (error) => {
+              console.error(`Error processing image ${i}:`, error);
+              reject(error); // Or resolve with original sourceImageData as fallback?
+            }
+          };
+          processImageProgressively(progressiveOpts);
+        });
+
+        processedImageDatas.push(processedData);
         
-        setIsProcessing(false);
+        // Update overall batch progress
+        setProgress(Math.round(((i + 1) / images.length) * 100));
+        
+        // Update the preview list with the newly processed image
+        const dataUrls = processedImageDatas.map(imgData => {
+            const canvas = document.createElement('canvas');
+            canvas.width = imgData.width;
+            canvas.height = imgData.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return '';
+            ctx.putImageData(imgData, 0, 0);
+            return canvas.toDataURL('image/png');
+        });
+        setProcessedImages(dataUrls); 
       }
+
+      setIsProcessing(false);
+      
+      // Final update to processedImages (might be redundant if updated in loop)
+      const finalDataUrls = processedImageDatas.map(imgData => {
+          const canvas = document.createElement('canvas');
+          canvas.width = imgData.width;
+          canvas.height = imgData.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return '';
+          ctx.putImageData(imgData, 0, 0);
+          return canvas.toDataURL('image/png');
+      });
+      setProcessedImages(finalDataUrls); 
+      
     } catch (error) {
-      console.error('Error processing images:', error);
+      console.error('Error processing batch:', error);
+      toast.error(`Error processing batch: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setIsProcessing(false);
     }
   };
@@ -213,7 +175,6 @@ const BatchProcessor: React.FC = () => {
         
         <p className="text-gray-600 mb-4">
           Process multiple images at once with the current settings from the editor.
-          {usingWebGL && <span className="ml-1 text-primary-600">Using GPU acceleration!</span>}
         </p>
         
         <div className="space-y-4">

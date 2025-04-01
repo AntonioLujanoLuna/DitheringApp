@@ -137,6 +137,9 @@ export function multiToneDithering(
 // Available multi-tone dithering algorithms
 export type MultiToneAlgorithm = 'ordered' | 'errorDiffusion' | 'blueNoise';
 
+// Define and export ToneDistribution type
+export type ToneDistribution = 'linear' | 'logarithmic' | 'exponential' | 'sigmoid';
+
 // Generate tone values for the specified number of levels
 function generateToneValues(levels: number): number[] {
   const values: number[] = [];

@@ -43,7 +43,7 @@ import {
   blur as blurImage
 } from './imageProcessing';
 
-import { DitheringAlgorithm, ColorMode } from '../../store/useEditorStore';
+import { DitheringAlgorithm, ColorMode } from '../../store/useEditingSessionStore';
 
 export function processImage(
   sourceImage: HTMLImageElement,

@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { useEditorStore, EditorSettings } from '../store/useEditorStore';
+import { useEditingSessionStore, EditorSettings } from '../store/useEditingSessionStore';
 import Button from '../components/ui/Button';
 import DitheredQRCode from '../components/ui/DitheredQRCode';
 
 const SharePage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { loadSettings } = useEditorStore();
+  const { loadSettings } = useEditingSessionStore();
   
   const [isLoading, setIsLoading] = useState(true);
   const [hasSettings, setHasSettings] = useState(false);

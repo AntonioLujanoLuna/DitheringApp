@@ -1,7 +1,10 @@
 // src/components/ui/MobileSettingsPanel.tsx
 import React, { useState } from 'react';
-import { useEditorStore } from '../../store/useEditorStore';
+import { useEditingSessionStore } from '../../store/useEditingSessionStore';
 import { useThemeStore } from '../../store/useThemeStore';
+import AlgorithmSelector from '../editor/settings/AlgorithmSelector';
+import GeneralControls from '../editor/settings/GeneralControls';
+import ColorControls from '../editor/settings/ColorControls';
 
 interface MobileSettingsPanelProps {
   onSavePreset: () => void;
@@ -29,7 +32,7 @@ const MobileSettingsPanel: React.FC<MobileSettingsPanelProps> = ({
     angle,
     setAngle,
     resetSettings
-  } = useEditorStore();
+  } = useEditingSessionStore();
   
   const toggleExpanded = () => {
     setExpanded(!expanded);

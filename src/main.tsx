@@ -4,6 +4,7 @@ import App from './App'
 import './index.css'
 import { registerServiceWorker } from './lib/registerServiceWorker'
 import { initBasePath } from './lib/utils/basePath'
+import { loadWasmModule, isWasmSupported } from './lib/wasm/ditheringWasm'
 
 // For debugging - display a message in console to confirm script is running
 console.log('Dithering App initializing...');
@@ -11,6 +12,18 @@ console.log('Running on GitHub Pages: ', window.location.hostname.includes('gith
 
 // Initialize the base path
 initBasePath();
+
+// Preload WebAssembly module if supported
+if (isWasmSupported()) {
+  console.info('WebAssembly is supported. Preloading module...');
+  // Start loading, but don't block rendering
+  loadWasmModule().catch(error => {
+    // Catch potential errors during the async loading initiation or final failure after retries
+    console.warn('WebAssembly module preloading failed:', error);
+  });
+} else {
+  console.info('WebAssembly not supported or previously failed. Skipping preload.');
+}
 
 // Register service worker for PWA support
 registerServiceWorker();

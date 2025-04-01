@@ -60,38 +60,34 @@ let wasmModule: WebAssembly.WebAssemblyInstantiatedSource | null = null;
 let wasmExports: DitheringWasmExports | null = null;
 let isLoading = false;
 let loadPromise: Promise<void> | null = null;
+let wasmLoadAttempts = 0;
+const MAX_WASM_LOAD_ATTEMPTS = 3;
+let wasmUnavailable = false; // Tracks if WASM is definitively unavailable after retries
 
 // Check if WebAssembly is supported
 export function isWasmSupported(): boolean {
+  // Only check for browser feature support initially
   const supported = (
     typeof WebAssembly === 'object' &&
     typeof WebAssembly.instantiate === 'function' &&
     typeof WebAssembly.Memory === 'function'
   );
   
-  // Check if we previously had a loading error
-  const hadLoadError = localStorage.getItem('wasm_load_error') === 'true';
-  
-  if (hadLoadError) {
-    console.warn('WebAssembly was previously unable to load, disabling support');
-    return false;
-  }
-  
   return supported;
-}
-
-// Track WebAssembly loading success/failure
-export function setWasmLoadError(hasError: boolean): void {
-  if (hasError) {
-    localStorage.setItem('wasm_load_error', 'true');
-    console.error('WebAssembly loading failed, disabling for future requests');
-  } else {
-    localStorage.removeItem('wasm_load_error');
-  }
 }
 
 // Asynchronously load the WebAssembly module
 export async function loadWasmModule(): Promise<void> {
+  // Initial check for browser support
+  if (!isWasmSupported()) {
+    console.warn('WebAssembly not supported by this browser.');
+    wasmUnavailable = true;
+  }
+
+  if (wasmUnavailable) {
+    throw new Error('WebAssembly module failed to load after multiple attempts.');
+  }
+
   if (wasmModule !== null) {
     return Promise.resolve();
   }
@@ -103,43 +99,58 @@ export async function loadWasmModule(): Promise<void> {
   isLoading = true;
   
   loadPromise = (async () => {
-    try {
-      // Get the base URL from Vite's import.meta.env or use a default
-      const base = (window as any).__VITE_BASE_URL__ || '/DitheringApp/';
-      
-      // Use the correct path considering GitHub Pages base path
-      // We're using a relative path with the base to avoid issues with GitHub Pages subdirectory
-      const wasmPath = `${base}assets/dithering_wasm.wasm`;
-      
-      console.log(`Loading WebAssembly module from: ${wasmPath}`);
-      const response = await fetch(wasmPath);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch WebAssembly module: ${response.status} ${response.statusText}`);
+    while (wasmLoadAttempts < MAX_WASM_LOAD_ATTEMPTS) {
+      try {
+        // Get the base URL from Vite's import.meta.env or use a default
+        const base = (window as any).__VITE_BASE_URL__ || '/DitheringApp/';
+        
+        // Use the correct path considering GitHub Pages base path
+        const wasmPath = `${base}assets/dithering_wasm.wasm`;
+        
+        console.log(`Attempt ${wasmLoadAttempts + 1}: Loading WebAssembly module from: ${wasmPath}`);
+        const response = await fetch(wasmPath);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch WebAssembly module: ${response.status} ${response.statusText}`);
+        }
+        
+        const wasmBytes = await response.arrayBuffer();
+        
+        wasmModule = await WebAssembly.instantiate(wasmBytes, {
+          env: {
+            // Environment variables and imported JavaScript functions if needed
+            memory: new WebAssembly.Memory({ initial: 256, maximum: 512 }),
+          },
+        });
+        
+        wasmExports = wasmModule.instance.exports as unknown as DitheringWasmExports;
+        console.log('WebAssembly module loaded successfully');
+        wasmLoadAttempts = 0; // Reset attempts on success
+        wasmUnavailable = false; // Mark as available
+        isLoading = false;
+        return; // Exit loop and promise on success
+      } catch (error) {
+        wasmLoadAttempts++;
+        console.error(`Failed to load WebAssembly module (attempt ${wasmLoadAttempts}/${MAX_WASM_LOAD_ATTEMPTS}):`, error);
+
+        if (wasmLoadAttempts >= MAX_WASM_LOAD_ATTEMPTS) {
+          console.error('Max WebAssembly load attempts reached. Disabling for this session.');
+          wasmUnavailable = true;
+          isLoading = false;
+          // Re-throw the last error to propagate failure
+          throw new Error(`WebAssembly module failed to load after ${MAX_WASM_LOAD_ATTEMPTS} attempts. Last error: ${error instanceof Error ? error.message : String(error)}`);
+        }
+
+        // Exponential backoff delay
+        const delay = Math.pow(2, wasmLoadAttempts - 1) * 1000; // 1s, 2s
+        console.log(`Retrying WASM load in ${delay / 1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-      
-      const wasmBytes = await response.arrayBuffer();
-      
-      wasmModule = await WebAssembly.instantiate(wasmBytes, {
-        env: {
-          // Environment variables and imported JavaScript functions if needed
-          memory: new WebAssembly.Memory({ initial: 256, maximum: 512 }),
-        },
-      });
-      
-      wasmExports = wasmModule.instance.exports as unknown as DitheringWasmExports;
-      console.log('WebAssembly module loaded successfully');
-      
-      // Mark successful loading
-      setWasmLoadError(false);
-    } catch (error) {
-      console.error('Failed to load WebAssembly module:', error);
-      // Mark the error so we don't try again in this session
-      setWasmLoadError(true);
-      throw error;
-    } finally {
-      isLoading = false;
     }
+    // This part should technically not be reached due to the throw inside the loop,
+    // but ensures the promise rejects if the loop finishes unexpectedly.
+    isLoading = false;
+    throw new Error("WebAssembly loading failed after multiple retries.");
   })();
   
   return loadPromise;
@@ -182,6 +193,9 @@ export async function orderedDitheringWasm(
   height: number,
   dotSize: number
 ): Promise<Uint8ClampedArray> {
+  if (!isWasmSupported() || wasmUnavailable) { 
+    throw new Error('WebAssembly is not available for ordered dithering.'); 
+  }
   await loadWasmModule();
   
   if (!wasmExports) {
@@ -212,6 +226,9 @@ export async function floydSteinbergDitheringWasm(
   height: number,
   threshold: number = 128
 ): Promise<Uint8ClampedArray> {
+  if (!isWasmSupported() || wasmUnavailable) { 
+    throw new Error('WebAssembly is not available for Floyd-Steinberg dithering.'); 
+  }
   await loadWasmModule();
   
   if (!wasmExports) {
@@ -242,6 +259,9 @@ export async function atkinsonDitheringWasm(
   height: number,
   threshold: number = 128
 ): Promise<Uint8ClampedArray> {
+  if (!isWasmSupported() || wasmUnavailable) { 
+    throw new Error('WebAssembly is not available for Atkinson dithering.'); 
+  }
   await loadWasmModule();
   
   if (!wasmExports) {
@@ -274,6 +294,9 @@ export async function halftoneDitheringWasm(
   spacing: number,
   angle: number
 ): Promise<Uint8ClampedArray> {
+  if (!isWasmSupported() || wasmUnavailable) { 
+    throw new Error('WebAssembly is not available for halftone dithering.'); 
+  }
   await loadWasmModule();
   
   if (!wasmExports) {
@@ -304,6 +327,9 @@ export async function sobelEdgeDetectionWasm(
   height: number,
   threshold: number
 ): Promise<Uint8ClampedArray> {
+  if (!isWasmSupported() || wasmUnavailable) { 
+    throw new Error('WebAssembly is not available for Sobel edge detection.'); 
+  }
   await loadWasmModule();
   
   if (!wasmExports) {

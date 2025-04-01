@@ -1,8 +1,15 @@
 // SVG export utilities for dithering effects
 // Particularly useful for halftone patterns
 
-import { PatternType } from '../algorithms/patternDithering';
-import { DitheringAlgorithm } from '../../store/useEditorStore';
+import { SVGExporter } from './svgUtils';
+import { 
+  rgbToGrayscale,
+  // applyColorToBinaryImage, // Commented out - function not found in expected location
+  processImage // Assuming processImage handles various dithering types
+} from '../algorithms';
+import { DitheringAlgorithm } from '../../store/useEditingSessionStore'; // Updated import
+import { getPatternMatrix } from '../algorithms/patternDithering';
+import type { PatternType } from '../algorithms/patternDithering';
 
 /**
  * Convert a processed canvas to an SVG representation
