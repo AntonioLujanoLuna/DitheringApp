@@ -19,7 +19,18 @@ import { FiShare2, FiSave, FiTrash2 } from 'react-icons/fi';
 import SaveImageModal from '../components/editor/modals/SaveImageModal';
 import SavePresetModal from '../components/editor/modals/SavePresetModal';
 import { useEditorSettings } from '../hooks/useEditorSettings';
-// ImageDropzone is not needed and doesn't exist in the project
+import { createPortal } from 'react-dom';
+import { isMobile } from 'react-device-detect';
+
+// New component imports
+import EditorHeader from '../components/editor/EditorHeader';
+import EditorEmptyState from '../components/editor/EditorEmptyState';
+import EditorSidebar from '../components/editor/EditorSidebar';
+import EditorMainContent from '../components/editor/EditorMainContent';
+import ShareModal from '../components/modals/ShareModal';
+import useEditorHistory from '../hooks/useEditorHistory';
+import useEditorControls from '../hooks/useEditorControls';
+import useEditorKeyboardShortcuts from '../hooks/useEditorKeyboardShortcuts';
 
 const Editor: React.FC = () => {
   const [saveModalOpen, setSaveModalOpen] = useState(false);
@@ -33,7 +44,7 @@ const Editor: React.FC = () => {
   const [shareLink, setShareLink] = useState('');
   
   const { darkMode, toggleDarkMode } = useThemeStore();
-  const { addToHistory, undo, redo } = useUserStore();
+  const { addToHistory, undo } = useUserStore();
   
   const settings = useEditorSettings();
   
@@ -262,153 +273,53 @@ const Editor: React.FC = () => {
     }
   ]);
 
+  // Handle window resize for mobile/desktop detection
+  const [isMobileView, setIsMobileView] = useState<boolean>(isMobile);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
   return (
-    <div className={`container mx-auto px-4 py-8 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Image Dithering Editor</h1>
-        
-        <div className="flex gap-2">
-          <Button 
-            onClick={toggleShortcutsModal}
-            variant="secondary"
-            className="hidden md:flex items-center gap-2"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-            Shortcuts
-          </Button>
-          
-          <div className="dropdown dropdown-end">
-            <Button 
-              variant="secondary"
-              className="flex items-center gap-2"
-            >
-              Processing Mode
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </Button>
-            <ul className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-10">
-              <li>
-                <a 
-                  onClick={() => {
-                    setShowBatchProcessor(false);
-                  }}
-                  className={!showBatchProcessor ? "active" : ""}
-                >
-                  Single Image
-                </a>
-              </li>
-              <li>
-                <a 
-                  onClick={() => {
-                    setShowBatchProcessor(true);
-                  }}
-                  className={showBatchProcessor ? "active" : ""}
-                >
-                  Batch Processing
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-[calc(100vh-80px)] px-4 py-6 lg:py-10">
+      {/* Editor Header - Title, Breadcrumbs, etc. */}
+      <EditorHeader />
       
-      {showBatchProcessor ? (
-        <BatchProcessor />
-      ) : (
+      {/* Editor Content */}
+      {originalImage ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left column: Image uploader and settings */}
-          <div className="lg:col-span-1 space-y-6">
-            {!originalImage && (
-              <div className="mb-6">
-                <ImageUploader onUpload={saveToHistory} />
-              </div>
-            )}
-            
-            {isMobile ? (
-              <MobileSettingsPanel 
-                onSavePreset={openSaveAsPresetModal} 
-                onBeforeChange={saveToHistory} 
-              />
-            ) : (
-              <SettingsPanel 
-                onSavePreset={openSaveAsPresetModal} 
-                onBeforeChange={saveToHistory} 
-              />
-            )}
-          </div>
+          {/* Left column: Settings Panel */}
+          <EditorSidebar 
+            showUploader={!originalImage}
+            onUpload={saveToHistory}
+            isMobile={isMobileView}
+            onSavePreset={openSaveAsPresetModal}
+            onBeforeChange={saveToHistory}
+          />
           
           {/* Right column: Preview and actions */}
-          <div className="lg:col-span-2 space-y-6">
-            <ImagePreview />
-            
-            {originalImage && (
-              <div className="flex flex-wrap justify-between mt-6 gap-3">
-                <div className="flex flex-wrap gap-2">
-                  <button 
-                    onClick={openImageManipulation}
-                    className={`btn ${darkMode ? 'btn-outline-primary' : 'btn-secondary'} flex items-center gap-2`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    Crop & Resize
-                  </button>
-                  
-                  <div className={`flex items-center gap-1 p-1 rounded ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                    <button
-                      onClick={handleUndo}
-                      className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700`}
-                      title="Undo (Ctrl+Z)"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              
-                <div className="flex flex-wrap gap-2">
-                  <button 
-                    onClick={openSaveModal}
-                    className="btn btn-primary flex items-center gap-2"
-                  >
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      className="h-5 w-5" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" 
-                      />
-                    </svg>
-                    Save to My Collection
-                  </button>
-                  
-                  <button 
-                    onClick={handleClearImage}
-                    className="btn btn-secondary flex items-center gap-2"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Clear Image
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          <EditorMainContent 
+            canvasRef={canvasRef}
+            originalImage={originalImage}
+            onCrop={openImageManipulation}
+            onUndo={handleUndo}
+            onSave={openSaveModal}
+            onClear={handleClearImage}
+            onShare={openShareModal}
+          />
         </div>
+      ) : (
+        <EditorEmptyState onUpload={saveToHistory} />
       )}
       
-      {/* Save Image Modal */}
+      {/* Modals */}
       <SaveImageModal 
         isOpen={saveModalOpen}
         onClose={() => setSaveModalOpen(false)}
@@ -417,76 +328,19 @@ const Editor: React.FC = () => {
         currentSettings={getCurrentSettings()}
       />
       
-      {/* Save Preset Modal */}
       <SavePresetModal 
         isOpen={saveAsPresetModalOpen}
         onClose={() => setSaveAsPresetModalOpen(false)}
         currentSettings={getCurrentSettings()}
       />
       
-      {/* Share Modal */}
-      {shareModalOpen && (
-        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${darkMode ? 'bg-gray-900/80' : 'bg-gray-100/80'}`}>
-          <div className={`w-full max-w-md rounded-lg shadow-xl p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            <h2 className="text-xl font-bold mb-4">Share Your Creation</h2>
-            
-            <div className="space-y-4">
-              <p className="text-sm text-gray-500">
-                Share this link to let others apply these exact settings to their own images. The link includes a preview of your current result.
-              </p>
-              
-              <div className="flex">
-                <input
-                  type="text"
-                  value={shareLink}
-                  readOnly
-                  className="flex-1 p-2 border border-gray-300 rounded-l-md text-sm"
-                />
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(shareLink);
-                    toast.success('Link copied to clipboard!');
-                  }}
-                  className="bg-primary-500 text-white px-3 py-2 rounded-r-md hover:bg-primary-600"
-                >
-                  Copy
-                </button>
-              </div>
-              
-              <div className="flex justify-between mt-2">
-                <button
-                  onClick={() => {
-                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent('Check out this image effect I created!')}&url=${encodeURIComponent(shareLink)}`, '_blank');
-                  }}
-                  className="text-blue-400 hover:text-blue-500"
-                >
-                  Share on Twitter
-                </button>
-                
-                <button
-                  onClick={() => {
-                    navigate(`/share?${shareLink.split('?')[1]}`);
-                  }}
-                  className="text-primary-600 hover:text-primary-700"
-                >
-                  View Share Page
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex justify-end mt-6 gap-2">
-              <Button
-                onClick={() => setShareModalOpen(false)}
-                variant="secondary"
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        shareLink={shareLink}
+        onViewSharePage={() => navigate(`/share?${shareLink.split('?')[1]}`)}
+      />
       
-      {/* Keyboard Shortcuts Modal */}
       {showKeyboardShortcuts && (
         <KeyboardShortcutsModal 
           shortcuts={shortcuts} 
@@ -494,7 +348,6 @@ const Editor: React.FC = () => {
         />
       )}
       
-      {/* Image Manipulation Modal */}
       {showImageManipulation && originalImage && (
         <ImageManipulation
           onClose={() => setShowImageManipulation(false)}

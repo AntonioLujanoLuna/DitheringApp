@@ -9,7 +9,8 @@ import {
   atkinsonDitheringWasm, 
   halftoneDitheringWasm,
   isWasmSupported,
-  loadWasmModule // Make sure WASM is loaded if used
+  loadWasmModule, // Make sure WASM is loaded if used
+  preloadWasmModule // New preload function
 } from '../wasm/ditheringWasm';
 import { rgbToGrayscale } from '../algorithms/grayscale'; // Needed for WASM
 
@@ -39,7 +40,9 @@ export interface ProgressiveOptions {
   onError?: (error: Error) => void;
   progressSteps?: number; // How many chunks/steps
   minChunkSize?: number; // Minimum pixel rows per chunk
+  maxChunkSize?: number; // Maximum pixel rows per chunk
   forceJS?: boolean; // Option to force JS for testing/fallback
+  batchProcessing?: boolean; // Whether to process in batch (sync) or async queue
 }
 
 // Default values for options
@@ -66,8 +69,55 @@ const defaultOptions = {
   onError: (error: Error) => { console.error('Progressive processing error:', error); },
   progressSteps: 10, // More steps for potentially slower JS/WASM chunks
   minChunkSize: 50, // Don't make chunks too small
+  maxChunkSize: 300, // Don't make chunks too large either
   forceJS: false,
+  batchProcessing: false, // Default to async processing
 };
+
+// Detect device capabilities for better performance tuning
+interface DeviceCapabilities {
+  cores: number;
+  isHighEnd: boolean;
+  hasSharedArrayBuffer: boolean;
+  hasOffscreenCanvas: boolean;
+  maxTextureSize: number; // For WebGL
+}
+
+function detectDeviceCapabilities(): DeviceCapabilities {
+  // Detect number of logical cores
+  const cores = navigator.hardwareConcurrency || 2;
+  
+  // Detect if this is likely a high-end device
+  // This is a simple heuristic - could be improved with more signals
+  const isHighEnd = cores >= 4;
+  
+  // Check for advanced features
+  const hasSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
+  const hasOffscreenCanvas = typeof OffscreenCanvas !== 'undefined';
+  
+  // Get max texture size for WebGL (useful for chunking large images)
+  let maxTextureSize = 2048; // Safe default
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') as WebGLRenderingContext | null;
+    if (gl) {
+      maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    }
+  } catch (e) {
+    console.warn('Could not detect WebGL max texture size', e);
+  }
+  
+  return {
+    cores,
+    isHighEnd,
+    hasSharedArrayBuffer,
+    hasOffscreenCanvas,
+    maxTextureSize
+  };
+}
+
+// Module-level variable to avoid re-detection
+let deviceCapabilities: DeviceCapabilities | null = null;
 
 /**
  * Processes an image progressively, applying dithering in chunks to avoid blocking the UI.
@@ -83,28 +133,50 @@ export function processImageProgressively(options: ProgressiveOptions): void {
     onError,
     progressSteps,
     minChunkSize,
+    maxChunkSize,
     forceJS,
     colorMode,
+    batchProcessing,
     // other options passed down
     ...processingOpts 
   } = opts;
 
+  // Detect device capabilities if we haven't already
+  if (!deviceCapabilities) {
+    deviceCapabilities = detectDeviceCapabilities();
+    console.info('Detected device capabilities:', deviceCapabilities);
+  }
+
   const width = sourceImageData.width;
   const totalHeight = sourceImageData.height;
 
-  // Check OffscreenCanvas support
-  const hasOffscreenCanvas = typeof OffscreenCanvas !== 'undefined';
+  // Use optimal chunk size based on image size and device capabilities
+  let optimalChunkSize = calculateOptimalChunkSize(
+    width, 
+    totalHeight, 
+    algorithm, 
+    deviceCapabilities,
+    progressSteps
+  );
+  
+  // Apply min/max boundaries
+  optimalChunkSize = Math.max(minChunkSize, Math.min(maxChunkSize, optimalChunkSize));
+  
+  // Recalculate actual steps based on chunk size
+  const actualSteps = Math.ceil(totalHeight / optimalChunkSize);
+  
+  console.info(`Processing with chunk size: ${optimalChunkSize}px, steps: ${actualSteps}`);
 
   // Create a canvas to composite the results
-  const resultCanvas = hasOffscreenCanvas 
+  const resultCanvas = deviceCapabilities.hasOffscreenCanvas 
     ? new OffscreenCanvas(width, totalHeight) 
     : document.createElement('canvas');
   resultCanvas.width = width;
   resultCanvas.height = totalHeight;
   const resultCtx = resultCanvas.getContext('2d', { 
       willReadFrequently: true, 
-      // alpha: false // Consider if transparency isn't needed
-  }) as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D; // Type assertion
+      alpha: false // We don't need transparency for most dithering operations
+  }) as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
 
   if (!resultCtx) {
     onError(new Error('Could not get result canvas context'));
@@ -120,15 +192,17 @@ export function processImageProgressively(options: ProgressiveOptions): void {
      algorithm === 'atkinson' || algorithm === 'halftone');
 
   let engine: 'webgl' | 'wasm' | 'js' = 'js'; // Default to JS
+  
+  // Choose engine based on algorithm and capabilities
   if (canUseWebGL) engine = 'webgl';
   if (canUseWasm) engine = 'wasm'; // Prioritize WASM if available for BW
+  
+  // Consider using WebGL for larger images (better parallelization)
+  if (width * totalHeight > 1000000 && canUseWebGL) { // > 1 megapixel
+    engine = 'webgl';
+  }
 
   console.info(`Progressive processing using: ${engine.toUpperCase()}`);
-
-  // Calculate chunk size, ensuring it meets the minimum
-  let chunkSize = Math.ceil(totalHeight / progressSteps);
-  chunkSize = Math.max(minChunkSize, chunkSize);
-  const actualSteps = Math.ceil(totalHeight / chunkSize);
 
   let processedHeight = 0;
   let currentStep = 0;
@@ -143,18 +217,80 @@ export function processImageProgressively(options: ProgressiveOptions): void {
     });
   }
 
-  // Function to process the next chunk
+  // Batch processing - process all chunks synchronously (for smaller images)
+  if (batchProcessing && totalHeight <= 1000) {
+    const processBatchedChunks = async () => {
+      try {
+        // Make sure WASM is loaded if needed
+        if (engine === 'wasm' && wasmLoadCheckPromise) {
+          await wasmLoadCheckPromise;
+        }
+        
+        let batchProgress = 0;
+        for (let y = 0; y < totalHeight; y += optimalChunkSize) {
+          const chunkHeight = Math.min(optimalChunkSize, totalHeight - y);
+          await processChunk(y, chunkHeight);
+          
+          batchProgress = Math.round(((y + chunkHeight) / totalHeight) * 100);
+          onProgress(batchProgress);
+        }
+        
+        // Finish and deliver final result
+        const finalResult = resultCtx.getImageData(0, 0, width, totalHeight);
+        onProgress(100, finalResult);
+        onComplete(finalResult);
+      } catch (error) {
+        onError(error instanceof Error ? error : new Error(String(error)));
+      }
+    };
+    
+    processBatchedChunks();
+    return;
+  }
+  
+  // Process chunks in a queue using requestAnimationFrame
   const processNextChunk = async () => {
+    // Stop condition
+    if (processedHeight >= totalHeight) {
+      const finalResult = resultCtx.getImageData(0, 0, width, totalHeight);
+      onProgress(100, finalResult);
+      onComplete(finalResult);
+      return;
+    }
+    
+    const chunkHeight = Math.min(optimalChunkSize, totalHeight - processedHeight);
+    const startY = processedHeight;
+    
+    try {
+      // Process current chunk
+      await processChunk(startY, chunkHeight);
+      
+      // Update progress
+      processedHeight += chunkHeight;
+      currentStep++;
+      const progressPercent = Math.round((processedHeight / totalHeight) * 100);
+      
+      // Report partial result
+      const partialResult = resultCtx.getImageData(0, 0, width, totalHeight);
+      onProgress(progressPercent, partialResult);
+      
+      // Schedule next chunk using requestAnimationFrame for smoother UI updates
+      requestAnimationFrame(() => processNextChunk());
+    } catch (error) {
+      onError(error instanceof Error ? error : new Error(String(error)));
+    }
+  };
+
+  // Process a single chunk
+  const processChunk = async (startY: number, chunkHeight: number): Promise<void> => {
     // Declare variables used across different engine paths and in finally block
     let chunkResultData: ImageData | null = null;
-    let tempCanvas: HTMLCanvasElement | null = null;
-    let tempCtx: CanvasRenderingContext2D | null = null;
-    let fakeChunkImg: any = null; // Adjust type as needed
+    let tempCanvas: HTMLCanvasElement | OffscreenCanvas | null = null;
+    let tempCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
     let grayscaleChunk: Uint8ClampedArray | null = null;
     let ditheredGrayscale: Uint8ClampedArray | null = null;
     let ditheredChunkData: Uint8ClampedArray | null = null;
-    // chunkSourceData is declared as const later, cannot nullify it without changing to let
-
+    
     // Ensure WASM is loaded if we intend to use it
     if (engine === 'wasm' && wasmLoadCheckPromise) {
       try {
@@ -164,27 +300,17 @@ export function processImageProgressively(options: ProgressiveOptions): void {
       }
     }
     
-    // Calculate the height of this chunk
-    const currentChunkHeight = Math.min(chunkSize, totalHeight - processedHeight);
-
-    if (currentChunkHeight <= 0) {
-      // Should have finished, but double-check
-      const finalResult = resultCtx.getImageData(0, 0, width, totalHeight);
-      onProgress(100, finalResult);
-      onComplete(finalResult);
-      return;
-    }
-
-    const startY = processedHeight;
-
     try {
       // Extract the source chunk 
-      // NOTE: Creating ImageData per chunk might be inefficient for very small chunks.
-      // Consider optimizing later if needed (e.g., operate directly on source buffer).
+      // Use subarray with TypedArray views to avoid unnecessary allocations
+      const sourceDataStart = startY * width * 4;
+      const sourceDataLength = chunkHeight * width * 4;
       const chunkSourceData = new ImageData(
-        sourceImageData.data.slice(startY * width * 4, (startY + currentChunkHeight) * width * 4),
+        new Uint8ClampedArray(sourceImageData.data.buffer, 
+                             sourceDataStart, 
+                             sourceDataLength),
         width,
-        currentChunkHeight
+        chunkHeight
       );
       
       // --- Processing Logic per Engine ---
@@ -193,7 +319,7 @@ export function processImageProgressively(options: ProgressiveOptions): void {
         // --- WASM Processing ---
         try {
           // Convert chunk to grayscale Uint8ClampedArray for WASM functions
-          grayscaleChunk = new Uint8ClampedArray(width * currentChunkHeight);
+          grayscaleChunk = new Uint8ClampedArray(width * chunkHeight);
           for (let j = 0; j < chunkSourceData.data.length; j += 4) {
             grayscaleChunk[j/4] = Math.round(
               0.299 * chunkSourceData.data[j] + 
@@ -201,28 +327,37 @@ export function processImageProgressively(options: ProgressiveOptions): void {
               0.114 * chunkSourceData.data[j+2]
             );
           }
-          // TODO: Apply contrast adjustment to grayscaleChunk if needed, matching gifProcessor
+          
+          // Apply contrast adjustment if needed
+          if (opts.contrast !== 50) {
+            const factor = (opts.contrast / 50);
+            for (let i = 0; i < grayscaleChunk.length; i++) {
+              const pixel = grayscaleChunk[i];
+              const adjusted = 128 + factor * (pixel - 128);
+              grayscaleChunk[i] = Math.max(0, Math.min(255, adjusted));
+            }
+          }
           
           // Call the specific WASM function based on algorithm
           switch (algorithm) {
              case 'ordered':
-               ditheredGrayscale = await orderedDitheringWasm(grayscaleChunk, width, currentChunkHeight, opts.dotSize);
+               ditheredGrayscale = await orderedDitheringWasm(grayscaleChunk, width, chunkHeight, opts.dotSize);
                break;
              case 'floydSteinberg':
-               ditheredGrayscale = await floydSteinbergDitheringWasm(grayscaleChunk, width, currentChunkHeight); // Add threshold option if needed
+               ditheredGrayscale = await floydSteinbergDitheringWasm(grayscaleChunk, width, chunkHeight); // Add threshold option if needed
                break;
              case 'atkinson':
-               ditheredGrayscale = await atkinsonDitheringWasm(grayscaleChunk, width, currentChunkHeight); // Add threshold option if needed
+               ditheredGrayscale = await atkinsonDitheringWasm(grayscaleChunk, width, chunkHeight); // Add threshold option if needed
                break;
              case 'halftone':
-                ditheredGrayscale = await halftoneDitheringWasm(grayscaleChunk, width, currentChunkHeight, opts.dotSize, opts.spacing, opts.angle);
+                ditheredGrayscale = await halftoneDitheringWasm(grayscaleChunk, width, chunkHeight, opts.dotSize, opts.spacing, opts.angle);
                 break;
              default:
                throw new Error(`Unsupported WASM algorithm: ${algorithm}`);
           }
 
           // Convert dithered grayscale back to ImageData
-          ditheredChunkData = new Uint8ClampedArray(width * currentChunkHeight * 4);
+          ditheredChunkData = new Uint8ClampedArray(width * chunkHeight * 4);
           for (let j = 0; j < ditheredGrayscale.length; j++) {
             const pixelValue = ditheredGrayscale[j];
             ditheredChunkData[j * 4] = pixelValue;     // R
@@ -230,7 +365,7 @@ export function processImageProgressively(options: ProgressiveOptions): void {
             ditheredChunkData[j * 4 + 2] = pixelValue; // B
             ditheredChunkData[j * 4 + 3] = 255;        // A
           }
-          chunkResultData = new ImageData(ditheredChunkData, width, currentChunkHeight);
+          chunkResultData = new ImageData(ditheredChunkData, width, chunkHeight);
 
         } catch (wasmError) {
           console.warn(`WASM processing failed for chunk at y=${startY}, falling back to JS`, wasmError);
@@ -240,150 +375,126 @@ export function processImageProgressively(options: ProgressiveOptions): void {
       } 
       
       if (engine === 'webgl' && !chunkResultData) {
-         // --- WebGL Processing ---
-         // Note: Assumes processImageWithWebGL handles ImageData input
-          try {
-             chunkResultData = processImageWithWebGL(
-               chunkSourceData,
-               algorithm === 'pattern' ? 'pattern' : 
-               algorithm === 'ordered' ? 'ordered' : 'halftone',
-               { // Pass relevant options from processingOpts
-                 patternSize: opts.patternSize,
-                 dotSize: opts.dotSize,
-                 spacing: opts.spacing,
-                 angle: opts.angle,
-                 patternTexture: algorithm === 'pattern' ? 
-                   patternMatrixToImageData(getPatternMatrix(opts.patternType, opts.patternSize)) : undefined
-               }
-             );
-          } catch (webglError) {
-             console.warn(`WebGL processing failed for chunk at y=${startY}, falling back to JS`, webglError);
-             engine = 'js'; // Fallback for remaining chunks
-          }
-      }
-      
-      if (engine === 'js' && !chunkResultData) {
-         // --- JavaScript Processing ---
-         // Create a temporary canvas for the JS processImage function, which expects an HTMLImageElement
-         // This is inefficient but avoids modifying the core processImage structure for now.
-         tempCanvas = document.createElement('canvas');
-         tempCanvas.width = width;
-         tempCanvas.height = currentChunkHeight;
-         tempCtx = tempCanvas.getContext('2d');
-
-         // Add null checks for safety
-         if (!tempCanvas || !tempCtx) {
-            throw new Error('Could not create temporary canvas context for JS processing');
-         }
-
-         tempCtx.putImageData(chunkSourceData, 0, 0);
-
-         // processImage expects an 'image-like' object, not ImageData directly
-         fakeChunkImg = {
-           width: width,
-           height: currentChunkHeight,
-           // processImage uses drawImage, so the data needs to be on the canvas
-           _canvas: tempCanvas // Pass canvas for potential internal use if needed
-         };
-
-         // Call the main JS dispatcher
-         chunkResultData = processImage(
-           fakeChunkImg as unknown as HTMLImageElement, // Cast needed due to function signature
-           algorithm,
-           opts.dotSize,
-           opts.contrast,
-           opts.colorMode,
-           opts.spacing,
-           opts.angle,
-           opts.customColors,
-           opts.brightness,
-           opts.gammaCorrection,
-           opts.hue,
-           opts.saturation,
-           opts.lightness,
-           opts.sharpness,
-           opts.blurRadius,
-           opts.patternType,
-           opts.patternSize,
-           opts.toneLevel,
-           opts.multiToneAlgorithm
-         );
-      }
-
-
-      // --- Compositing ---
-      if (chunkResultData) {
-         // Draw the processed chunk onto the main result canvas
-         // Use createImageBitmap for potentially better performance if supported
-         // const bitmap = await createImageBitmap(chunkResultData);
-         resultCtx.putImageData(chunkResultData, 0, startY);
-      } else {
-         // If chunk processing failed entirely (e.g., JS also threw an error)
-         throw new Error(`Chunk processing failed for algorithm ${algorithm} at y=${startY}`);
-      }
-      
-      // Update progress
-      processedHeight += currentChunkHeight;
-      currentStep++;
-      // Send progress slightly less than 100 until the very end
-      const progress = Math.min(99, Math.round((processedHeight / totalHeight) * 100));
-
-      // Get the current composite state for the progress update
-      // Reading back frequently can be slow, consider only sending progress %
-      // or sending partial updates less often if performance is an issue.
-      const currentResult = resultCtx.getImageData(0, 0, width, totalHeight); 
-      onProgress(progress, currentResult);
-
-      // --- Loop continuation ---
-      if (processedHeight >= totalHeight) {
-        // All done
-        onProgress(100, currentResult); // Send final 100%
-        onComplete(currentResult);
-      } else {
-        // Schedule the next chunk using setTimeout to yield to the main thread
-        setTimeout(processNextChunk, 0); 
-      }
-
-    } catch (error) {
-       // Catch errors during chunk extraction, processing call, or compositing
-       onError(error instanceof Error ? error : new Error(String(error)));
-       // Stop processing further chunks on error
-    } finally {
-        // Explicitly nullify large objects to potentially help GC
-        // Type safety note: Need to ensure these variables are declared with types allowing null
-        // For simplicity, assuming they are correctly typed or using 'any' implicitly here.
-        // Consider stricter typing if needed.
-
-        // Cannot assign to 'chunkSourceData' because it is a constant.
-        // chunkSourceData = null; // Declared as const, cannot reassign
-        chunkResultData = null;
-
-        // Need to check if tempCanvas etc were actually created (only in JS path)
-        if (typeof tempCanvas !== 'undefined' && tempCanvas !== null) {
-          // Assuming tempCanvas, tempCtx, fakeChunkImg were declared with 'let' in the JS block's scope
-          // tempCanvas = null; // Cannot find name 'tempCanvas'.
-          // tempCtx = null; // Cannot find name 'tempCtx'.
-          // fakeChunkImg = null; // Cannot find name 'fakeChunkImg'.
-          // These need to be declared outside the 'if (engine === 'js')' block to be accessed here.
-          // For now, skipping these assignments as they would require scope changes.
+        // --- WebGL Processing ---
+        try {
+          chunkResultData = processImageWithWebGL(
+            chunkSourceData,
+            algorithm === 'pattern' ? 'pattern' : 
+            algorithm === 'ordered' ? 'ordered' : 'halftone',
+            { 
+              dotSize: opts.dotSize,
+              spacing: opts.spacing,
+              angle: opts.angle,
+              // For pattern algorithm
+              ...(algorithm === 'pattern' ? {
+                patternSize: opts.patternSize,
+                patternTexture: patternMatrixToImageData(getPatternMatrix(opts.patternType || 'dots', opts.patternSize || 4))
+              } : {})
+            }
+          );
+        } catch (webglError) {
+          console.warn(`WebGL processing failed for chunk at y=${startY}, falling back to JS`, webglError);
+          engine = 'js'; // Fallback for remaining chunks
         }
+      }
+      
+      if (!chunkResultData) {
+        // --- JavaScript Processing (fallback) ---
+        chunkResultData = processImage(
+          chunkSourceData as unknown as HTMLImageElement, 
+          algorithm,
+          opts.dotSize,
+          opts.contrast,
+          opts.colorMode,
+          opts.spacing,
+          opts.angle,
+          opts.customColors,
+          opts.brightness,
+          opts.gammaCorrection,
+          opts.hue,
+          opts.saturation,
+          opts.lightness,
+          opts.sharpness,
+          opts.blurRadius,
+          opts.patternType,
+          opts.patternSize,
+          opts.toneLevel,
+          opts.multiToneAlgorithm
+        );
+      }
+      
+      // Draw chunk onto the result canvas
+      resultCtx.putImageData(chunkResultData, 0, startY);
+      
+    } finally {
+      // Clean up large buffers to help with memory management
+      grayscaleChunk = null;
+      ditheredGrayscale = null;
+      ditheredChunkData = null;
+      
+      // Clean up canvas resources
+      if (tempCanvas) {
+        // Use type assertion to help the type checker
+        const offscreenCanvasCheck = typeof OffscreenCanvas !== 'undefined' && 
+          (tempCanvas as any) instanceof OffscreenCanvas;
         
-        // Similar issue for grayscaleChunk if declared inside 'if (engine === 'wasm')'
-        // grayscaleChunk = null; 
-        // ditheredGrayscale = null;
-        // ditheredChunkData = null;
-
-        // Nullify variables declared at the top of the function scope
-        tempCanvas = null; 
-        tempCtx = null;
-        fakeChunkImg = null;
-        grayscaleChunk = null;
-        ditheredGrayscale = null;
-        ditheredChunkData = null;
+        if (offscreenCanvasCheck && 'close' in tempCanvas) {
+          (tempCanvas as any).close();
+        }
+      }
+      tempCanvas = null;
+      tempCtx = null;
     }
   };
+  
+  // Explicitly trigger garbage collection if available (Node.js environment only)
+  // In browsers, we can only hint to the GC by nullifying references
+  if (typeof window === 'undefined' && typeof globalThis !== 'undefined' && 'gc' in globalThis) {
+    (globalThis as any).gc();
+  }
 
-  // Start the first chunk processing
-  onProgress(0); // Initial progress = 0
-  setTimeout(processNextChunk, 0); // Start async loop
+  // Start processing
+  processNextChunk();
+}
+
+/**
+ * Calculate optimal chunk size based on image size and device capabilities
+ */
+function calculateOptimalChunkSize(
+  width: number, 
+  height: number, 
+  algorithm: DitheringAlgorithm, 
+  capabilities: DeviceCapabilities,
+  requestedSteps: number
+): number {
+  // Base chunk height on requested steps
+  let chunkSize = Math.ceil(height / requestedSteps);
+  
+  // For error diffusion algorithms (which are more memory intensive),
+  // use smaller chunks on lower-end devices
+  if ((algorithm === 'floydSteinberg' || algorithm === 'atkinson') && !capabilities.isHighEnd) {
+    chunkSize = Math.min(chunkSize, 100);
+  }
+  
+  // For WebGL, ensure chunks aren't too large for texture limits
+  if (width > capabilities.maxTextureSize || height > capabilities.maxTextureSize) {
+    chunkSize = Math.min(chunkSize, Math.floor(capabilities.maxTextureSize * 0.8));
+  }
+  
+  // For high-end devices with multiple cores, we can process larger chunks
+  if (capabilities.isHighEnd && capabilities.cores >= 6) {
+    chunkSize = Math.max(chunkSize, 200); // Larger chunks for better throughput
+  }
+  
+  // For small images, just process in 2-4 chunks to reduce overhead
+  if (height < 400) {
+    chunkSize = Math.ceil(height / Math.min(4, requestedSteps));
+  }
+  
+  return chunkSize;
+}
+
+// Preload WASM on module import to make it ready earlier
+if (isWasmSupported()) {
+  preloadWasmModule();
 } 

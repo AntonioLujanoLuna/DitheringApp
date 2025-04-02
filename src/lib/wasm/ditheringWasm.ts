@@ -63,17 +63,113 @@ let loadPromise: Promise<void> | null = null;
 let wasmLoadAttempts = 0;
 const MAX_WASM_LOAD_ATTEMPTS = 3;
 let wasmUnavailable = false; // Tracks if WASM is definitively unavailable after retries
+const WASM_CACHE_KEY = 'dithering-wasm-module-cache'; // For storing in IndexedDB
 
 // Check if WebAssembly is supported
 export function isWasmSupported(): boolean {
-  // Only check for browser feature support initially
+  // Enhanced check including streaming instantiation which is faster
   const supported = (
     typeof WebAssembly === 'object' &&
     typeof WebAssembly.instantiate === 'function' &&
+    typeof WebAssembly.instantiateStreaming === 'function' &&
     typeof WebAssembly.Memory === 'function'
   );
   
   return supported;
+}
+
+// Check for IndexedDB support (for caching WASM)
+function isIndexedDBSupported(): boolean {
+  return typeof indexedDB !== 'undefined';
+}
+
+// Store WASM binary in IndexedDB for faster future loads
+async function storeWasmInCache(wasmBinary: ArrayBuffer): Promise<void> {
+  if (!isIndexedDBSupported()) return;
+  
+  return new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open('DitheringWasmCache', 1);
+    
+    request.onupgradeneeded = function() {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('wasm-modules')) {
+        db.createObjectStore('wasm-modules');
+      }
+    };
+    
+    request.onsuccess = function() {
+      const db = request.result;
+      const transaction = db.transaction(['wasm-modules'], 'readwrite');
+      const store = transaction.objectStore('wasm-modules');
+      store.put(wasmBinary, WASM_CACHE_KEY);
+      
+      transaction.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      
+      transaction.onerror = () => {
+        db.close();
+        reject(new Error('Failed to store WASM in IndexedDB'));
+      };
+    };
+    
+    request.onerror = function() {
+      reject(new Error('Failed to open IndexedDB for WASM caching'));
+    };
+  });
+}
+
+// Get cached WASM module from IndexedDB
+async function getCachedWasm(): Promise<ArrayBuffer | null> {
+  if (!isIndexedDBSupported()) return null;
+  
+  return new Promise<ArrayBuffer | null>((resolve, reject) => {
+    const request = indexedDB.open('DitheringWasmCache', 1);
+    
+    request.onupgradeneeded = function() {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('wasm-modules')) {
+        db.createObjectStore('wasm-modules');
+      }
+    };
+    
+    request.onsuccess = function() {
+      const db = request.result;
+      try {
+        const transaction = db.transaction(['wasm-modules'], 'readonly');
+        const store = transaction.objectStore('wasm-modules');
+        const getRequest = store.get(WASM_CACHE_KEY);
+        
+        getRequest.onsuccess = function() {
+          db.close();
+          resolve(getRequest.result);
+        };
+        
+        getRequest.onerror = function() {
+          db.close();
+          resolve(null);
+        };
+      } catch (err) {
+        db.close();
+        resolve(null);
+      }
+    };
+    
+    request.onerror = function() {
+      resolve(null);
+    };
+  });
+}
+
+// Preload WASM module in the background (can be called early in app init)
+export function preloadWasmModule(): void {
+  if (wasmModule !== null || isLoading || wasmUnavailable) return;
+  
+  // Load without waiting for the result
+  loadWasmModule().catch(err => {
+    console.warn('Background WASM preloading failed:', err);
+  });
 }
 
 // Asynchronously load the WebAssembly module
@@ -82,6 +178,7 @@ export async function loadWasmModule(): Promise<void> {
   if (!isWasmSupported()) {
     console.warn('WebAssembly not supported by this browser.');
     wasmUnavailable = true;
+    throw new Error('WebAssembly not supported by this browser.');
   }
 
   if (wasmUnavailable) {
@@ -99,6 +196,29 @@ export async function loadWasmModule(): Promise<void> {
   isLoading = true;
   
   loadPromise = (async () => {
+    // First try to load from IndexedDB cache
+    try {
+      const cachedWasm = await getCachedWasm();
+      
+      if (cachedWasm) {
+        console.log('Found cached WASM module, instantiating...');
+        
+        wasmModule = await WebAssembly.instantiate(cachedWasm, {
+          env: {
+            memory: new WebAssembly.Memory({ initial: 256, maximum: 512 }),
+          },
+        });
+        
+        wasmExports = wasmModule.instance.exports as unknown as DitheringWasmExports;
+        console.log('WebAssembly module loaded from cache successfully');
+        isLoading = false;
+        return;
+      }
+    } catch (cacheError) {
+      console.warn('Failed to load WASM from cache, will try network:', cacheError);
+    }
+    
+    // If not in cache, load from network
     while (wasmLoadAttempts < MAX_WASM_LOAD_ATTEMPTS) {
       try {
         // Get the base URL from Vite's import.meta.env or use a default
@@ -108,20 +228,75 @@ export async function loadWasmModule(): Promise<void> {
         const wasmPath = `${base}assets/dithering_wasm.wasm`;
         
         console.log(`Attempt ${wasmLoadAttempts + 1}: Loading WebAssembly module from: ${wasmPath}`);
-        const response = await fetch(wasmPath);
         
-        if (!response.ok) {
-          throw new Error(`Failed to fetch WebAssembly module: ${response.status} ${response.statusText}`);
+        // Try streaming instantiation first (more efficient)
+        if (WebAssembly.instantiateStreaming) {
+          try {
+            const response = await fetch(wasmPath);
+            
+            if (!response.ok) {
+              throw new Error(`Failed to fetch WebAssembly module: ${response.status} ${response.statusText}`);
+            }
+            
+            wasmModule = await WebAssembly.instantiateStreaming(response, {
+              env: {
+                memory: new WebAssembly.Memory({ initial: 256, maximum: 512 }),
+              },
+            });
+            
+            // Clone the response to get the ArrayBuffer for caching
+            const clonedResponse = await fetch(wasmPath);
+            const wasmBinary = await clonedResponse.arrayBuffer();
+            
+            // Store in IndexedDB for next time
+            storeWasmInCache(wasmBinary).catch(err => {
+              console.warn('Failed to cache WASM module:', err);
+            });
+            
+          } catch (streamingError) {
+            console.warn('Streaming instantiation failed, falling back to ArrayBuffer method:', streamingError);
+            
+            // Fallback to traditional method
+            const response = await fetch(wasmPath);
+            
+            if (!response.ok) {
+              throw new Error(`Failed to fetch WebAssembly module: ${response.status} ${response.statusText}`);
+            }
+            
+            const wasmBytes = await response.arrayBuffer();
+            
+            // Store for caching before instantiation
+            storeWasmInCache(wasmBytes).catch(err => {
+              console.warn('Failed to cache WASM module:', err);
+            });
+            
+            wasmModule = await WebAssembly.instantiate(wasmBytes, {
+              env: {
+                memory: new WebAssembly.Memory({ initial: 256, maximum: 512 }),
+              },
+            });
+          }
+        } else {
+          // Fallback for browsers without instantiateStreaming
+          const response = await fetch(wasmPath);
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch WebAssembly module: ${response.status} ${response.statusText}`);
+          }
+          
+          const wasmBytes = await response.arrayBuffer();
+          
+          // Store for caching
+          storeWasmInCache(wasmBytes).catch(err => {
+            console.warn('Failed to cache WASM module:', err);
+          });
+          
+          wasmModule = await WebAssembly.instantiate(wasmBytes, {
+            env: {
+              memory: new WebAssembly.Memory({ initial: 256, maximum: 512 }),
+            },
+          });
         }
-        
-        const wasmBytes = await response.arrayBuffer();
-        
-        wasmModule = await WebAssembly.instantiate(wasmBytes, {
-          env: {
-            // Environment variables and imported JavaScript functions if needed
-            memory: new WebAssembly.Memory({ initial: 256, maximum: 512 }),
-          },
-        });
         
         wasmExports = wasmModule.instance.exports as unknown as DitheringWasmExports;
         console.log('WebAssembly module loaded successfully');
