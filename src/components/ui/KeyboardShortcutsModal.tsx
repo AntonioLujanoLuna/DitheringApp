@@ -1,7 +1,8 @@
 import React from 'react';
 import { useThemeStore } from '../../store/useThemeStore';
 
-interface KeyboardShortcut {
+// Export the interface
+export interface KeyboardShortcut {
   combination: string;
   description: string;
 }

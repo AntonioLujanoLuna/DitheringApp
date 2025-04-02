@@ -19,25 +19,32 @@ const Layout: React.FC = () => {
   const isActive = (path: string) => {
     return location.pathname.startsWith(path);
   };
+
+  // Enhanced dark mode toggle with transition
+  const handleToggleDarkMode = () => {
+    document.documentElement.classList.add('dark-mode-transition');
+    toggleDarkMode();
+    setTimeout(() => document.documentElement.classList.remove('dark-mode-transition'), 300);
+  };
   
   return (
     <div className={`min-h-screen flex flex-col ${darkMode ? 'dark bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
-      <header className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-b py-4`}>
+      <header className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-b py-4 shadow-sm`}>
         <div className="container mx-auto px-4 flex justify-between items-center">
-          <Link to="/" className="text-2xl font-bold text-primary-600">
+          <Link to="/" className="text-2xl font-bold text-primary-600 hover:text-primary-500 transition-colors duration-200">
             Halftone
           </Link>
           
           <nav className="hidden md:flex space-x-6">
             <Link 
               to="/editor" 
-              className={`font-medium ${isActive('/editor') ? 'text-primary-600' : darkMode ? 'text-gray-300 hover:text-primary-600' : 'text-gray-700 hover:text-primary-600'}`}
+              className={`font-medium transition-colors duration-200 ${isActive('/editor') ? 'text-primary-600' : darkMode ? 'text-gray-300 hover:text-primary-500' : 'text-gray-700 hover:text-primary-600'}`}
             >
               Editor
             </Link>
             <Link 
               to="/gallery/my" 
-              className={`font-medium ${isActive('/gallery') ? 'text-primary-600' : darkMode ? 'text-gray-300 hover:text-primary-600' : 'text-gray-700 hover:text-primary-600'}`}
+              className={`font-medium transition-colors duration-200 ${isActive('/gallery') ? 'text-primary-600' : darkMode ? 'text-gray-300 hover:text-primary-500' : 'text-gray-700 hover:text-primary-600'}`}
             >
               My Gallery
             </Link>
@@ -45,8 +52,8 @@ const Layout: React.FC = () => {
           
           <div className="flex items-center space-x-4">
             <button 
-              onClick={toggleDarkMode}
-              className={`p-2 rounded-full ${darkMode ? 'bg-gray-700 text-yellow-400' : 'bg-gray-200 text-gray-700'}`}
+              onClick={handleToggleDarkMode}
+              className={`p-2 rounded-full transition-colors duration-200 ${darkMode ? 'bg-gray-700 text-yellow-400 hover:bg-gray-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
               aria-label="Toggle dark mode"
             >
               {darkMode ? (
@@ -63,13 +70,13 @@ const Layout: React.FC = () => {
             <div className="hidden md:block">
               <Link 
                 to="/editor" 
-                className={`btn btn-primary`}
+                className="inline-flex items-center justify-center px-4 py-2 rounded-md font-medium transition-colors duration-200 bg-primary-600 text-white hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:outline-none dark:bg-primary-500 dark:hover:bg-primary-600"
               >
                 Create New
               </Link>
             </div>
             
-            <button className="md:hidden p-2 text-gray-700 dark:text-gray-300">
+            <button className="md:hidden p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors duration-200">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>

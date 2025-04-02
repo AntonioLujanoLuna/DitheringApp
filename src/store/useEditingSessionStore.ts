@@ -119,6 +119,7 @@ interface EditingSessionState {
   setIsProcessing: (isProcessing: boolean) => void;
   resetSettings: () => void;
   loadSettings: (settings: Partial<EditorSettings>) => void;
+  reset: () => void;
 
   // --- Actions from RegionStore --- 
   addRegion: (region: Omit<Region, 'id' | 'isSelected'>) => string;
@@ -234,6 +235,19 @@ export const useEditingSessionStore = create<EditingSessionState>((set, get) => 
   loadSettings: (settings) => {
     console.log('Loading settings from preset:', settings);
     set({ ...settings });
+  },
+  reset: () => {
+    console.log('Resetting entire editing session');
+    set({
+      originalImage: null,
+      ...DEFAULT_SETTINGS,
+      regions: [],
+      activeRegionId: null,
+      // Keep presets? Decide based on desired behavior
+      // selectedPreset: null,
+      isProcessing: false,
+      presetError: null,
+    });
   },
 
   // --- Actions from RegionStore --- 

@@ -1,26 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { useNavigate, useLocation } from 'react-router-dom';
-import ImageUploader from '../components/editor/ImageUploader';
-import ImagePreview from '../components/editor/ImagePreview';
-import SettingsPanel from '../components/editor/SettingsPanel';
-import MobileSettingsPanel from '../components/ui/MobileSettingsPanel';
-import BatchProcessor from '../components/batch/BatchProcessor';
-import ImageManipulation from '../components/editor/ImageManipulation';
-import KeyboardShortcutsModal from '../components/ui/KeyboardShortcutsModal';
+import { useNavigate } from 'react-router-dom';
 import { useThemeStore } from '../store/useThemeStore';
-import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts';
 import { useEditingSessionStore, EditorSettings } from '../store/useEditingSessionStore';
-import { useGalleryStore } from '../store/useGalleryStore';
 import { useUserStore } from '../store/useUserStore';
-import Button from '../components/ui/Button';
 import { parseSettingsFromURL } from '../lib/utils/shareUtils';
-import { FiShare2, FiSave, FiTrash2 } from 'react-icons/fi';
+import { FiShare2 } from 'react-icons/fi';
 import SaveImageModal from '../components/editor/modals/SaveImageModal';
 import SavePresetModal from '../components/editor/modals/SavePresetModal';
 import { useEditorSettings } from '../hooks/useEditorSettings';
-import { createPortal } from 'react-dom';
-import { isMobile } from 'react-device-detect';
+import KeyboardShortcutsModal, { KeyboardShortcut } from '../components/ui/KeyboardShortcutsModal';
+import ImageManipulation from '../components/editor/ImageManipulation';
 
 // New component imports
 import EditorHeader from '../components/editor/EditorHeader';
@@ -28,47 +18,52 @@ import EditorEmptyState from '../components/editor/EditorEmptyState';
 import EditorSidebar from '../components/editor/EditorSidebar';
 import EditorMainContent from '../components/editor/EditorMainContent';
 import ShareModal from '../components/modals/ShareModal';
-import useEditorHistory from '../hooks/useEditorHistory';
-import useEditorControls from '../hooks/useEditorControls';
-import useEditorKeyboardShortcuts from '../hooks/useEditorKeyboardShortcuts';
+
+// Type for internal shortcut definition
+interface ShortcutDefinition {
+  key: string;
+  ctrl?: boolean;
+  shift?: boolean;
+  alt?: boolean; // Added alt for completeness, though not used yet
+  action: () => void;
+  description: string;
+}
 
 const Editor: React.FC = () => {
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [saveAsPresetModalOpen, setSaveAsPresetModalOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [showBatchProcessor, setShowBatchProcessor] = useState(false);
+  const [isMobileView, setIsMobileView] = useState<boolean>(window.innerWidth < 768);
   const [showImageManipulation, setShowImageManipulation] = useState(false);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareLink, setShareLink] = useState('');
   
   const { darkMode, toggleDarkMode } = useThemeStore();
-  const { addToHistory, undo } = useUserStore();
+  const { addToHistory, undo, clearHistory } = useUserStore();
   
   const settings = useEditorSettings();
   
-  const { 
-    originalImage, 
+  const {
+    originalImage,
     loadSettings,
     createPreset,
+    reset
   } = useEditingSessionStore(state => ({
     originalImage: state.originalImage,
     loadSettings: state.loadSettings,
     createPreset: state.createPreset,
+    reset: state.reset
   }));
   
-  const { saveImageToCollection } = useGalleryStore();
   const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   
   // Detect mobile viewport
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
+      setIsMobileView(window.innerWidth < 768);
     };
     
-    handleResize();
     window.addEventListener('resize', handleResize);
     
     return () => {
@@ -112,7 +107,11 @@ const Editor: React.FC = () => {
   
   // Undo
   const handleUndo = () => {
-    undo();
+    const previousState = undo();
+    if (previousState) {
+      console.log("Applying previous state:", previousState);
+      loadSettings(previousState as Partial<EditorSettings>);
+    }
   };
   
   const openSaveModal = () => {
@@ -129,19 +128,23 @@ const Editor: React.FC = () => {
   
   const handleClearImage = () => {
     if (window.confirm('Are you sure you want to clear this image?')) {
-      // Clear the image (implementation depends on your store setup)
-      window.location.reload();
+      reset();
+      clearHistory();
     }
   };
   
   const openImageManipulation = () => {
+    if (!originalImage) {
+        toast.error("Please upload an image first.");
+        return;
+    }
     setShowImageManipulation(true);
   };
   
   const triggerImageUpload = () => {
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const fileInput = document.querySelector('#file-upload-input');
     if (fileInput) {
-      fileInput.click();
+      (fileInput as HTMLInputElement).click();
     }
   };
   
@@ -150,161 +153,116 @@ const Editor: React.FC = () => {
   };
   
   const openShareModal = () => {
-    if (!originalImage) {
+    if (!originalImage || !canvasRef.current) {
       toast.error('Please process an image first');
       return;
     }
-    
-    // Get canvas reference from ImagePreview component
-    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
-    if (!canvas) {
-      toast.error('Cannot find processed image');
-      return;
-    }
-    
-    canvasRef.current = canvas;
+    const canvas = canvasRef.current;
     setShareModalOpen(true);
-    
-    // Generate sharing data
     const settings = getCurrentSettings();
-    createSharingLink(settings);
+    createSharingLink(settings, canvas);
   };
   
-  const createSharingLink = (settings: EditorSettings) => {
-    // Create URL parameters from settings
+  const createSharingLink = (settings: EditorSettings, canvas: HTMLCanvasElement) => {
     const params = new URLSearchParams();
-    
-    if (settings.algorithm) params.append('algorithm', settings.algorithm);
-    if (settings.dotSize !== undefined) params.append('dotSize', settings.dotSize.toString());
-    if (settings.contrast !== undefined) params.append('contrast', settings.contrast.toString());
-    if (settings.colorMode) params.append('colorMode', settings.colorMode);
-    if (settings.spacing !== undefined) params.append('spacing', settings.spacing.toString());
-    if (settings.angle !== undefined) params.append('angle', settings.angle.toString());
-    if (settings.customColors && settings.customColors.length) 
-      params.append('colors', settings.customColors.join(','));
-    
-    // Add preview image if available
-    if (canvasRef.current) {
-      // Create a smaller preview image
-      const previewCanvas = document.createElement('canvas');
-      const maxSize = 300; // Max width or height for preview
-      
-      // Scale to fit within maxSize
-      const aspectRatio = canvasRef.current.width / canvasRef.current.height;
-      let previewWidth, previewHeight;
-      
-      if (aspectRatio > 1) {
-        previewWidth = maxSize;
-        previewHeight = maxSize / aspectRatio;
-      } else {
-        previewHeight = maxSize;
-        previewWidth = maxSize * aspectRatio;
+    Object.entries(settings).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        if (Array.isArray(value)) {
+          if (value.length > 0) params.append(key, value.join(','));
+        } else {
+          params.append(key, String(value));
+        }
       }
-      
-      previewCanvas.width = previewWidth;
-      previewCanvas.height = previewHeight;
-      
-      const ctx = previewCanvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(canvasRef.current, 0, 0, previewWidth, previewHeight);
-        const previewDataUrl = previewCanvas.toDataURL('image/jpeg', 0.7);
-        params.append('preview', previewDataUrl);
+    });
+
+    const previewCanvas = document.createElement('canvas');
+    const maxSize = 300;
+    const aspectRatio = canvas.width / canvas.height;
+    let previewWidth = aspectRatio > 1 ? maxSize : maxSize * aspectRatio;
+    let previewHeight = aspectRatio > 1 ? maxSize / aspectRatio : maxSize;
+    previewCanvas.width = previewWidth;
+    previewCanvas.height = previewHeight;
+    const ctx = previewCanvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(canvas, 0, 0, previewWidth, previewHeight);
+      const previewDataUrl = previewCanvas.toDataURL('image/jpeg', 0.7);
+      if (previewDataUrl.length < 4000) {
+          params.append('preview', previewDataUrl);
+      } else {
+          console.warn("Preview image too large for URL.");
       }
     }
     
-    const shareUrl = `${window.location.origin}/#/share?${params.toString()}`;
+    const shareUrl = `${window.location.origin}${window.location.pathname}#/share?${params.toString()}`;
     setShareLink(shareUrl);
   };
   
-  // Define keyboard shortcuts
-  const { shortcuts } = useKeyboardShortcuts([
-    {
-      key: 's',
-      ctrl: true,
-      action: openSaveModal,
-      description: 'Save image to collection'
-    },
-    {
-      key: 'p',
-      ctrl: true,
-      action: openSaveAsPresetModal,
-      description: 'Save current settings as preset'
-    },
-    {
-      key: 'o',
-      ctrl: true,
-      action: triggerImageUpload,
-      description: 'Open/upload new image'
-    },
-    {
-      key: 'e',
-      ctrl: true,
-      action: openImageManipulation,
-      description: 'Edit image (crop/resize)'
-    },
-    {
-      key: 'd',
-      ctrl: true,
-      action: toggleDarkMode,
-      description: 'Toggle dark/light mode'
-    },
-    {
-      key: 'z',
-      ctrl: true,
-      action: handleUndo,
-      description: 'Undo last change'
-    },
-    {
-      key: '?',
-      action: toggleShortcutsModal,
-      description: 'Show keyboard shortcuts'
-    },
-    {
-      key: 'Delete',
-      action: handleClearImage,
-      description: 'Clear current image'
-    },
-    {
-      key: 's',
-      shift: true,
-      ctrl: true,
-      action: openShareModal,
-      description: 'Share current settings'
-    }
-  ]);
+  // Internal shortcut definitions
+  const shortcutDefinitions: ShortcutDefinition[] = [
+    { key: 's', ctrl: true, action: openSaveModal, description: 'Save image' },
+    { key: 'p', ctrl: true, action: openSaveAsPresetModal, description: 'Save as preset' },
+    { key: 'o', ctrl: true, action: triggerImageUpload, description: 'Open image' },
+    { key: 'e', ctrl: true, action: openImageManipulation, description: 'Edit image' },
+    { key: 'd', ctrl: true, action: toggleDarkMode, description: 'Toggle dark mode' },
+    { key: 'z', ctrl: true, action: handleUndo, description: 'Undo' },
+    { key: '?', action: toggleShortcutsModal, description: 'Show shortcuts' },
+    { key: 'Delete', action: handleClearImage, description: 'Clear image' },
+    { key: 's', shift: true, ctrl: true, action: openShareModal, description: 'Share settings' }
+  ];
 
-  // Handle window resize for mobile/desktop detection
-  const [isMobileView, setIsMobileView] = useState<boolean>(isMobile);
-  
+  // Transform shortcuts for the modal
+  const modalShortcuts: KeyboardShortcut[] = shortcutDefinitions.map(s => {
+    let combination = '';
+    if (s.ctrl) combination += 'Ctrl + ';
+    if (s.shift) combination += 'Shift + ';
+    if (s.alt) combination += 'Alt + ';
+    combination += s.key.length === 1 ? s.key.toUpperCase() : s.key; // Capitalize single keys
+    return { combination, description: s.description };
+  });
+
+  // Setup keyboard shortcuts listener
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobileView(window.innerWidth < 768);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const activeElement = document.activeElement;
+      if (activeElement && ('tagName' in activeElement) && [
+        'INPUT', 'TEXTAREA', 'SELECT'
+      ].includes(activeElement.tagName)) {
+          return;
+      }
+
+      shortcutDefinitions.forEach(shortcut => {
+        if (
+          event.key.toLowerCase() === shortcut.key.toLowerCase() && // Case-insensitive key match
+          (shortcut.ctrl === undefined || event.ctrlKey === shortcut.ctrl) &&
+          (shortcut.shift === undefined || event.shiftKey === shortcut.shift) &&
+          (shortcut.alt === undefined || event.altKey === shortcut.alt) // Correct check for alt
+        ) {
+          event.preventDefault();
+          shortcut.action();
+        }
+      });
     };
-    
-    window.addEventListener('resize', handleResize);
+
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [shortcutDefinitions]); // Dependency array includes definitions
 
   return (
     <div className="min-h-[calc(100vh-80px)] px-4 py-6 lg:py-10">
-      {/* Editor Header - Title, Breadcrumbs, etc. */}
       <EditorHeader />
       
-      {/* Editor Content */}
       {originalImage ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left column: Settings Panel */}
           <EditorSidebar 
-            showUploader={!originalImage}
+            showUploader={!originalImage} // Pass the required prop
             onUpload={saveToHistory}
             isMobile={isMobileView}
             onSavePreset={openSaveAsPresetModal}
             onBeforeChange={saveToHistory}
           />
           
-          {/* Right column: Preview and actions */}
           <EditorMainContent 
             canvasRef={canvasRef}
             originalImage={originalImage}
@@ -343,7 +301,7 @@ const Editor: React.FC = () => {
       
       {showKeyboardShortcuts && (
         <KeyboardShortcutsModal 
-          shortcuts={shortcuts} 
+          shortcuts={modalShortcuts} // Pass the transformed shortcuts
           onClose={toggleShortcutsModal} 
         />
       )}

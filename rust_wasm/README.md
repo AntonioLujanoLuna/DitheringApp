@@ -1,33 +1,59 @@
 # Dithering WebAssembly Module
 
-This directory contains the Rust implementation of various dithering algorithms optimized for WebAssembly.
+This Rust crate compiles to WebAssembly (Wasm) to provide high-performance dithering algorithms for web applications.
 
-## Prerequisites
+## Algorithms Implemented
 
-- [Rust](https://www.rust-lang.org/tools/install)
-- [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
+*   Ordered (Bayer)
+*   Floyd-Steinberg
+*   Atkinson
+*   Halftone
+*   Random
+*   Sierra Lite
+*   Burkes
+*   Stucki
+*   Jarvis-Judice-Ninke
+*   Pattern (Dots, Lines, Crosses, etc.)
+*   Riemersma (Hilbert Curve)
+*   Blue Noise (Mitchell's Best Candidate approx.)
+*   Void and Cluster
+*   Direct Binary Search (DBS) - **Note:** Memory intensive precomputation.
+*   Multi-Tone (using Ordered, Error Diffusion, or Blue Noise)
+*   Selective (applying different algorithms to masked regions)
 
-## Building the WebAssembly Module
+## Building
 
-1. Install Rust and wasm-pack if not already installed:
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-   ```
+To compile the Rust code into WebAssembly, you need `wasm-pack`.
 
-2. Build the WebAssembly module from this directory:
-   ```bash
-   wasm-pack build --target web
-   ```
+1.  **Install `wasm-pack`** (if you haven't already):
+    ```bash
+    cargo install wasm-pack
+    ```
 
-3. This will generate a `pkg` directory containing the compiled WebAssembly module.
+2.  **Navigate to this directory** (`rust_wasm`):
+    ```bash
+    cd rust_wasm
+    ```
 
-4. Copy the generated files to the appropriate location in your web application:
-   ```bash
-   mkdir -p ../public/assets
-   cp pkg/dithering_wasm_bg.wasm ../public/assets/dithering_wasm.wasm
-   cp pkg/dithering_wasm.js ../src/lib/wasm/
-   ```
+3.  **Build the Wasm package** targeting the web:
+    ```bash
+    wasm-pack build --target web
+    ```
+
+This command will generate a `pkg` directory within `rust_wasm`. This directory contains:
+
+*   `dithering_wasm_bg.wasm`: The compiled WebAssembly binary.
+*   `dithering_wasm.js`: JavaScript bindings (glue code) to load and interact with the Wasm module.
+*   `dithering_wasm.d.ts`: TypeScript definitions for the JS bindings.
+*   `package.json`: Defines the package details.
+
+## Integration
+
+1.  Copy or link the generated `pkg` directory into your web application (e.g., `src/lib/wasm_pkg`).
+2.  Import the necessary functions and the `init` function from the generated JavaScript file (e.g., `dithering_wasm.js`).
+3.  Call `await init()` once before using any Wasm functions.
+4.  Use the exported Wasm functions (like `floyd_steinberg_dither`, `selective_dither`, etc.).
+5.  **Remember to manage Wasm memory:** Use the provided `allocate` and `deallocate` functions to create/free memory buffers passed to/from the Wasm module. Copy data into and out of the Wasm memory space.
 
 ## Performance Notes
 
