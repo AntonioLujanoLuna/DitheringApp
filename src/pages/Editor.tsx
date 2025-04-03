@@ -4,15 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { useThemeStore } from '../store/useThemeStore';
 import { useEditingSessionStore, EditorSettings } from '../store/useEditingSessionStore';
 import { useUserStore } from '../store/useUserStore';
-import { parseSettingsFromURL } from '../lib/utils/shareUtils';
-import { FiShare2 } from 'react-icons/fi';
 import SaveImageModal from '../components/editor/modals/SaveImageModal';
 import SavePresetModal from '../components/editor/modals/SavePresetModal';
 import { useEditorSettings } from '../hooks/useEditorSettings';
 import KeyboardShortcutsModal, { KeyboardShortcut } from '../components/ui/KeyboardShortcutsModal';
 import ImageManipulation from '../components/editor/ImageManipulation';
-
-// New component imports
 import EditorHeader from '../components/editor/EditorHeader';
 import EditorEmptyState from '../components/editor/EditorEmptyState';
 import EditorSidebar from '../components/editor/EditorSidebar';
