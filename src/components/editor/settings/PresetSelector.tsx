@@ -34,8 +34,17 @@ const PresetSelector: React.FC<PresetSelectorProps> = ({ onSavePreset }) => {
     }
   };
   
-  const handleDeletePreset = async (id: string) => {
-    // Implementation of handleDeletePreset function
+  const handleDeletePreset = async () => {
+    if (selectedPreset) {
+      try {
+        await deletePreset(selectedPreset.id);
+        // Optionally: Add success feedback or reset selection
+        selectPreset(null); // Clear selection after deletion
+      } catch (error) {
+        console.error("Failed to delete preset:", error);
+        // Optionally: Show error message to the user
+      }
+    }
   };
   
   return (
@@ -51,20 +60,38 @@ const PresetSelector: React.FC<PresetSelectorProps> = ({ onSavePreset }) => {
         </button>
       </div>
       
-      <select
-        value={selectedPreset?.id || ''}
-        onChange={handlePresetChange}
-        className={`w-full p-2 border rounded-lg ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
-      >
-        <option value="">Select a preset</option>
-        {myPresets.map(preset => (
-          <option key={preset.id} value={preset.id}>
-            {preset.name}
-          </option>
-        ))}
-      </select>
+      <div className="flex items-center space-x-2">
+        <select
+          value={selectedPreset?.id || ''}
+          onChange={handlePresetChange}
+          className={`flex-grow p-2 border rounded-lg ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+        >
+          <option value="">Select a preset</option>
+          {myPresets.map(preset => (
+            <option key={preset.id} value={preset.id}>
+              {preset.name}
+            </option>
+          ))}
+        </select>
+        
+        <button
+          onClick={handleDeletePreset}
+          disabled={!selectedPreset || isPresetLoading}
+          className={`p-2 rounded-lg ${
+            darkMode 
+              ? 'bg-red-700 hover:bg-red-800 disabled:bg-gray-600' 
+              : 'bg-red-500 hover:bg-red-600 disabled:bg-gray-300'
+          } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
+          aria-label="Delete selected preset"
+        >
+          <FiTrash2 />
+        </button>
+      </div>
       
-      {myPresets.length === 0 && (
+      {isPresetLoading && <p className="text-sm text-gray-500 dark:text-gray-400">Loading presets...</p>}
+      {presetError && <p className="text-sm text-red-500 dark:text-red-400">Error loading presets: {presetError}</p>}
+      
+      {myPresets.length === 0 && !isPresetLoading && (
         <p className="text-sm text-gray-500 dark:text-gray-400">
           You don't have any saved presets yet. Save your current settings to create one.
         </p>
