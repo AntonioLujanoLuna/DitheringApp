@@ -25,28 +25,37 @@ export function atkinsonDithering(
         const error = (oldPixel - newPixel) / 8; // Distribute 1/8 of error to each neighbor
         
         // Distribute error to neighboring pixels using Atkinson pattern
+        // As per standard: 1/8 of error to each of the 6 neighbors:
+        // (x+1,y), (x+2,y), (x-1,y+1), (x,y+1), (x+1,y+1), (x,y+2)
+
+        // Pixel (x+1, y)
         if (x + 1 < width) {
           buffer[idx + 1] += error;
         }
         
+        // Pixel (x+2, y)
         if (x + 2 < width) {
           buffer[idx + 2] += error;
         }
         
-        if (y + 1 < height) {
-          if (x - 1 >= 0) {
-            buffer[idx + width - 1] += error;
-          }
-          
-          buffer[idx + width] += error;
-          
-          if (x + 1 < width) {
-            buffer[idx + width + 1] += error;
-          }
+        // Pixel (x-1, y+1)
+        if (y + 1 < height && x - 1 >= 0) {
+          buffer[idx + width - 1] += error;
         }
         
-        if (y + 2 < height) {
-          buffer[idx + width * 2] += error;
+        // Pixel (x, y+1)
+        if (y + 1 < height) { // x is implicitly valid within loop bounds
+          buffer[idx + width] += error;
+        }
+        
+        // Pixel (x+1, y+1)
+        if (y + 1 < height && x + 1 < width) {
+          buffer[idx + width + 1] += error;
+        }
+        
+        // Pixel (x, y+2)
+        if (y + 2 < height) { // x is implicitly valid within loop bounds
+          buffer[idx + 2 * width] += error; 
         }
         
         // Set all RGB channels to the result (black or white)
