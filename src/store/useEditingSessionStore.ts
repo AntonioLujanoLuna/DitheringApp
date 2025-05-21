@@ -243,8 +243,7 @@ export const useEditingSessionStore = create<EditingSessionState>((set, get) => 
       ...DEFAULT_SETTINGS,
       regions: [],
       activeRegionId: null,
-      // Keep presets? Decide based on desired behavior
-      // selectedPreset: null,
+      selectedPreset: null, // Ensures selected preset is cleared
       isProcessing: false,
       presetError: null,
     });
@@ -272,28 +271,42 @@ export const useEditingSessionStore = create<EditingSessionState>((set, get) => 
     }));
   },
   
-  deleteRegion: (id) => {
+  deleteRegion: (idToDelete) => { // Renamed id to idToDelete for clarity
     set((state) => {
-      const remainingRegions = state.regions.filter((region) => region.id !== id);
+      const originalIndex = state.regions.findIndex(region => region.id === idToDelete);
       let nextActiveId: string | null = null;
+      
+      // Filter out the region to be deleted first
+      const remainingRegions = state.regions.filter(region => region.id !== idToDelete);
 
-      if (state.activeRegionId === id) {
-        // If the deleted one was active, select the first remaining one, or null
-        nextActiveId = remainingRegions.length > 0 ? remainingRegions[0].id : null;
+      if (state.activeRegionId === idToDelete) {
+        // The active region is being deleted
+        if (remainingRegions.length === 0) {
+          nextActiveId = null; // No regions left
+        } else {
+          // originalIndex will be >= 0 if idToDelete was found (which it should be)
+          // Try to select the region at the same index if valid, otherwise the new last one
+          if (originalIndex < remainingRegions.length) {
+            nextActiveId = remainingRegions[originalIndex].id;
+          } else {
+            // This covers cases where originalIndex was the last item, making it now equal to remainingRegions.length
+            nextActiveId = remainingRegions[remainingRegions.length - 1].id;
+          }
+        }
       } else {
-        // Otherwise, the active region remains the same (if it exists)
+        // A non-active region is being deleted. Active region remains the same.
         nextActiveId = state.activeRegionId;
       }
       
-      // Update the isSelected status based on the final nextActiveId
-      const updatedRegions = remainingRegions.map(r => ({
+      // Update the isSelected status for all regions based on the final nextActiveId
+      const updatedRegionsWithSelection = remainingRegions.map(r => ({
         ...r,
         isSelected: r.id === nextActiveId
       }));
 
       return {
-        regions: updatedRegions, // Return the correctly updated array
-        activeRegionId: nextActiveId, // Return the correctly determined active ID
+        regions: updatedRegionsWithSelection,
+        activeRegionId: nextActiveId,
       };
     });
   },

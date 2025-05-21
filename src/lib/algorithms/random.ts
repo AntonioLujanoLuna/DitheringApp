@@ -4,7 +4,7 @@ export function randomDithering(
   width: number,
   height: number,
   threshold: number = 128,
-  noiseAmount: number = 50
+  noiseIntensity: number = 50
 ): ImageData {
   // Create output ImageData
   const outputData = new ImageData(width, height);
@@ -16,8 +16,8 @@ export function randomDithering(
       const idx = y * width + x;
       const pixel = grayscale[idx];
       
-      // Generate random noise between -noiseAmount/2 and +noiseAmount/2
-      const noise = (Math.random() - 0.5) * noiseAmount;
+      // Generate random noise between -noiseIntensity/2 and +noiseIntensity/2
+      const noise = (Math.random() - 0.5) * noiseIntensity;
       
       // Add noise to the pixel value
       const noisyPixel = pixel + noise;

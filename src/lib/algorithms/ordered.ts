@@ -3,8 +3,7 @@ export function orderedDithering(
     grayscale: Uint8ClampedArray,
     width: number,
     height: number,
-    dotSize: number = 1,
-    threshold: number = 128
+    dotSize: number = 1
   ): ImageData {
     // 4x4 Bayer matrix
     const bayerMatrix = [
@@ -14,9 +13,11 @@ export function orderedDithering(
       [15, 7, 13, 5]
     ];
     
-    // Scale the Bayer matrix values to the threshold range
-    const bayerScaled = bayerMatrix.map(row => 
-      row.map(val => Math.floor((val / 16) * 256 - 128))
+    // Scale the Bayer matrix values from 0-15 to 0-255 range
+    // For a 4x4 matrix, values are 0-15 (16 levels).
+    // Scaled value = floor(original_value / 16 * 255)
+    const bayerMatrixScaled = bayerMatrix.map(row => 
+      row.map(val => Math.floor(val / 16 * 255))
     );
     
     // Create output ImageData
@@ -32,10 +33,10 @@ export function orderedDithering(
         // Get the Bayer threshold adjustment for this position
         const bayerX = Math.floor(x / dotSize) % 4;
         const bayerY = Math.floor(y / dotSize) % 4;
-        const bayerValue = bayerScaled[bayerY][bayerX];
+        const bayerValue = bayerMatrixScaled[bayerY][bayerX]; // Use the new scaled matrix
         
-        // Apply threshold with Bayer adjustment
-        const result = pixelValue + bayerValue > threshold ? 255 : 0;
+        // Apply threshold: compare pixel value with scaled Bayer matrix value
+        const result = pixelValue > bayerValue ? 255 : 0;
         
         // Set all RGB channels to the result (black or white)
         output[idx * 4] = result;     // R
